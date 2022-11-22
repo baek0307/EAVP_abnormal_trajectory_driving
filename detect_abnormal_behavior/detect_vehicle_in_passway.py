@@ -15,6 +15,8 @@ PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
 PGIE_CLASS_ID_PERSON = 2
 PGIE_CLASS_ID_ROADSIGN = 3
+OSD_PROCESS_MODE= 0
+OSD_DISPLAY_TEXT= 1
 past_tracking_meta=[0]
 
 def osd_sink_pad_buffer_probe(pad,info,u_data):
@@ -32,18 +34,10 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         print("Unable to get GstBuffer ")
         return
 
-    # Retrieve batch metadata from the gst_buffer
-    # Note that pyds.gst_buffer_get_nvds_batch_meta() expects the
-    # C address of gst_buffer as input, which is obtained with hash(gst_buffer)
     batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))
     l_frame = batch_meta.frame_meta_list
     while l_frame is not None:
         try:
-            # Note that l_frame.data needs a cast to pyds.NvDsFrameMeta
-            # The casting is done by pyds.NvDsFrameMeta.cast()
-            # The casting also keeps ownership of the underlying memory
-            # in the C code, so the Python garbage collector will leave
-            # it alone.
             frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
         except StopIteration:
             break
@@ -63,17 +57,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             except StopIteration:
                 break
 
-        # Acquiring a display meta object. The memory ownership remains in
-        # the C code so downstream plugins can still access it. Otherwise
-        # the garbage collector will claim it when this probe function exits.
         display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
         display_meta.num_labels = 1
         py_nvosd_text_params = display_meta.text_params[0]
-        # Setting display text to be shown on screen
-        # Note that the pyds module allocates a buffer for the string, and the
-        # memory will not be claimed by the garbage collector.
-        # Reading the display_text field here will return the C address of the
-        # allocated string. Use pyds.get_string() to get the string content.
         py_nvosd_text_params.display_text = "Frame Number={} Number of Objects={} Vehicle_count={} Person_count={}".format(frame_number, num_rects, obj_counter[PGIE_CLASS_ID_VEHICLE], obj_counter[PGIE_CLASS_ID_PERSON])
 
         # Now set the offsets where the string should appear
@@ -102,21 +88,11 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         l_user=batch_meta.batch_user_meta_list
         while l_user is not None:
             try:
-                # Note that l_user.data needs a cast to pyds.NvDsUserMeta
-                # The casting is done by pyds.NvDsUserMeta.cast()
-                # The casting also keeps ownership of the underlying memory
-                # in the C code, so the Python garbage collector will leave
-                # it alone
                 user_meta=pyds.NvDsUserMeta.cast(l_user.data)
             except StopIteration:
                 break
             if(user_meta and user_meta.base_meta.meta_type==pyds.NvDsMetaType.NVDS_TRACKER_PAST_FRAME_META):
                 try:
-                    # Note that user_meta.user_meta_data needs a cast to pyds.NvDsPastFrameObjBatch
-                    # The casting is done by pyds.NvDsPastFrameObjBatch.cast()
-                    # The casting also keeps ownership of the underlying memory
-                    # in the C code, so the Python garbage collector will leave
-                    # it alone
                     pPastFrameObjBatch = pyds.NvDsPastFrameObjBatch.cast(user_meta.user_meta_data)
                 except StopIteration:
                     break
@@ -154,7 +130,6 @@ def main(args):
     Gst.init(None)
 
     # Create gstreamer elements
-    # Create Pipeline element that will form a connection of other elements
     print("Creating Pipeline \n ")
     pipeline = Gst.Pipeline()
 
