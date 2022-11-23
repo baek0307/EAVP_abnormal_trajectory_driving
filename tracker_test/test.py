@@ -42,12 +42,11 @@ file_loop = False
 perf_data = None
 
 
+PGIE_CONFIG_FILE = "pgie_config_yolov4.txt"
 TRACKER_CONFIG_FILE = "dstest2_tracker_config.txt"
 MAX_DISPLAY_LEN=64
-PGIE_CLASS_ID_VEHICLE = 0
-PGIE_CLASS_ID_BICYCLE = 1
-PGIE_CLASS_ID_PERSON = 2
-PGIE_CLASS_ID_ROADSIGN = 3
+PGIE_CLASS_ID_CAR = 0
+PGIE_CLASS_ID_PERSON = 1
 MUXER_OUTPUT_WIDTH=1920
 MUXER_OUTPUT_HEIGHT=1080
 MUXER_BATCH_TIMEOUT_USEC=4000000
@@ -58,7 +57,7 @@ OSD_PROCESS_MODE= 0
 OSD_DISPLAY_TEXT= 1
 TRACKING_PROCESS = 1
 # past_tracking_meta=[0]
-pgie_classes_str= ["Vehicle", "TwoWheeler", "Person","RoadSign"]
+pgie_classes_str= ["Car", "Person"]
 
 # pgie_src_pad_buffer_probe  will extract metadata received on tiler sink pad
 # and update params for drawing rectangle, object information etc.
@@ -83,10 +82,8 @@ def pgie_src_pad_buffer_probe(pad,info,u_data):
         l_obj=frame_meta.obj_meta_list
         num_rects = frame_meta.num_obj_meta
         obj_counter = {
-            PGIE_CLASS_ID_VEHICLE:0,
+            PGIE_CLASS_ID_CAR:0,
             PGIE_CLASS_ID_PERSON:0,
-            PGIE_CLASS_ID_BICYCLE:0,
-            PGIE_CLASS_ID_ROADSIGN:0
         }
         while l_obj is not None:
             try: 
@@ -100,7 +97,7 @@ def pgie_src_pad_buffer_probe(pad,info,u_data):
             except StopIteration:
                 break
         if not silent:
-            print("Frame Number=", frame_number, "Number of Objects=",num_rects,"Vehicle_count=",obj_counter[PGIE_CLASS_ID_VEHICLE],"Person_count=",obj_counter[PGIE_CLASS_ID_PERSON])
+            print("Frame Number=", frame_number, "Number of Objects=",num_rects,"Vehicle_count=",obj_counter[PGIE_CLASS_ID_CAR],"Person_count=",obj_counter[PGIE_CLASS_ID_PERSON])
 
 #### add this code
         # display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
@@ -377,7 +374,8 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     elif requested_pgie == "nvinfer" and config != None:
         pgie.set_property('config-file-path', config)
     else:
-        pgie.set_property('config-file-path', "dstest3_pgie_config.txt")
+        pgie.set_property('config-file-path', PGIE_CONFIG_FILE)
+        # pgie.set_property('config-file-path', "dstest3_pgie_config.txt")
     pgie_batch_size=pgie.get_property("batch-size")
     if(pgie_batch_size != number_sources):
         print("WARNING: Overriding infer-config batch-size",pgie_batch_size," with number of sources ", number_sources," \n")
@@ -435,7 +433,6 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     streammux.link(queue1)
     queue1.link(pgie)
     pgie.link(queue2)
-    # queue2.link(queue3)
     queue2.link(tracker)
     tracker.link(queue3)
     print("link tracker to queue3")
