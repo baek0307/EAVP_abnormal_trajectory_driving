@@ -320,12 +320,14 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     queue4=Gst.ElementFactory.make("queue","queue4")
     queue5=Gst.ElementFactory.make("queue","queue5")
     queue6=Gst.ElementFactory.make("queue","queue6")
+    queue7=Gst.ElementFactory.make("queue","queue7")
     pipeline.add(queue1)
     pipeline.add(queue2)
     pipeline.add(queue3)
     pipeline.add(queue4)
     pipeline.add(queue5)
     pipeline.add(queue6)
+    pipeline.add(queue7)
 
     nvdslogger = None
     transform = None
@@ -345,6 +347,12 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     tracker = Gst.ElementFactory.make("nvtracker", "tracker")
     if not tracker:
         sys.stderr.write(" Unable to create tracker \n")
+
+    print("Creating nvdsanalytics \n ")
+    nvanalytics = Gst.ElementFactory.make("nvdsanalytics", "analytics")
+    if not nvanalytics:
+        sys.stderr.write(" Unable to create nvanalytics \n")
+    nvanalytics.set_property("config-file", "config_nvdsanalytics_test.txt")
 
     if disable_probe:
         # Use nvdslogger for perf measurement instead of probe function
@@ -447,6 +455,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     print("Adding elements to Pipeline \n")
     pipeline.add(pgie)
     pipeline.add(tracker)
+    pipeline.add(nvanalytics)
     if nvdslogger:
         pipeline.add(nvdslogger)
     pipeline.add(tiler)
@@ -462,22 +471,25 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     pgie.link(queue2)
     queue2.link(tracker)
     tracker.link(queue3)
+    queue3.link(nvanalytics)
+    nvanalytics.link(queue4)
+
     print("link tracker to queue3")
     if nvdslogger:
-        queue3.link(nvdslogger)
+        queue4.link(nvdslogger)
         nvdslogger.link(tiler)
     else:
-        queue3.link(tiler)
+        queue4.link(tiler)
     tiler.link(queue4)
-    queue4.link(nvvidconv)
-    nvvidconv.link(queue5)
-    queue5.link(nvosd)
+    queue5.link(nvvidconv)
+    nvvidconv.link(queue6)
+    queue6.link(nvosd)
     if transform:
-        nvosd.link(queue6)
+        nvosd.link(queue7)
         queue6.link(transform)
         transform.link(sink)
     else:
-        nvosd.link(queue6)
+        nvosd.link(queue7)
         queue6.link(sink)   
 
     # create an event loop and feed gstreamer bus mesages to it
