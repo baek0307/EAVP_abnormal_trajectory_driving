@@ -41,10 +41,12 @@ pixel-normalization-factor=0.003921568
 
 
 [group-0]
-src-ids=0;1;2;3
+#src-ids=0;1;2;3
+src-ids=0;
 custom-input-transformation-function=CustomAsyncTransformation
 process-on-roi=1
-roi-params-src-0=0;540;900;500;960;0;900;500;0;0;540;900;
-roi-params-src-1=0;540;900;500;960;0;900;500;0;0;540;900;
-roi-params-src-2=0;540;900;500;960;0;900;500;0;0;540;900;
-roi-params-src-3=0;540;900;500;960;0;900;500;0;0;540;900;
+#roi-params-src-0=560;1080;1000;1080;
+roi-params-src-0=0;540;900;500;
+#roi-params-src-1=0;540;900;500;
+#roi-params-src-2=0;540;900;500;
+#roi-params-src-3=0;540;900;500;
