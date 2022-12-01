@@ -44,6 +44,7 @@ perf_data = None
 
 PGIE_CONFIG_FILE = "pgie_config_yolov4.txt"
 TRACKER_CONFIG_FILE = "dstest2_tracker_config.txt"
+PREPROCESS_CONFIG_FILE = "config_preprocess.txt"
 MAX_DISPLAY_LEN=64
 PGIE_CLASS_ID_CAR = 0
 PGIE_CLASS_ID_PERSON = 1
@@ -275,7 +276,7 @@ def create_source_bin(index,uri):
 def main(args, requested_pgie=None, request_tracker=None, config=None, disable_probe=False):
     global perf_data
     perf_data = PERF_DATA(len(args))
-
+    
     number_sources=len(args)
 
     # Standard GStreamer initialization
@@ -314,11 +315,10 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
         if not srcpad:
             sys.stderr.write("Unable to create src pad bin \n")
         srcpad.link(sinkpad)
-
-    preprocess = Gst.ElementFactory("nvdspreprocess", "preprocess-plugin")
+    
+    preprocess = Gst.ElementFactory.make("nvdspreprocess", "preprocess-plugin")
     if not preprocess:
         sys.stderr.write(" Unable to create preprocess \n")
-    
     queue1=Gst.ElementFactory.make("queue","queue1")
     queue2=Gst.ElementFactory.make("queue","queue2")
     queue3=Gst.ElementFactory.make("queue","queue3")
@@ -336,7 +336,6 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
 
     nvdslogger = None
     transform = None
-
     print("Creating Pgie \n ")
     if requested_pgie != None and (requested_pgie == 'nvinferserver' or requested_pgie == 'nvinferserver-grpc') :
         pgie = Gst.ElementFactory.make("nvinferserver", "primary-inference")
@@ -400,8 +399,9 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     streammux.set_property('height', 1080)
     streammux.set_property('batch-size', number_sources)
     streammux.set_property('batched-push-timeout', 4000000)
-    preprocess.set_property("config-file", "config_preprocess.txt")
-
+    
+    preprocess.set_property("config-file", PREPROCESS_CONFIG_FILE)
+    
     if requested_pgie == "nvinferserver" and config != None:
         pgie.set_property('config-file-path', config)
     elif requested_pgie == "nvinferserver-grpc" and config != None:
@@ -410,7 +410,6 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
         pgie.set_property('config-file-path', config)
     else:
         pgie.set_property('config-file-path', PGIE_CONFIG_FILE)
-        # pgie.set_property('config-file-path', "dstest3_pgie_config.txt")
     pgie_batch_size=pgie.get_property("batch-size")
     if(pgie_batch_size != number_sources):
         print("WARNING: Overriding infer-config batch-size",pgie_batch_size," with number of sources ", number_sources," \n")
@@ -465,6 +464,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
         pipeline.add(transform)
     pipeline.add(sink)
 
+
     print("Linking elements in the Pipeline \n")
     streammux.link(queue1)
     queue1.link(preprocess)
@@ -473,7 +473,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     pgie.link(queue3)
     queue3.link(tracker)
     tracker.link(queue4)
-    print("link tracker to queue3")
+    print("link tracker to queue4")
     if nvdslogger:
         queue4.link(nvdslogger)
         nvdslogger.link(tiler)
