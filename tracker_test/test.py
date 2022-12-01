@@ -314,18 +314,25 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
         if not srcpad:
             sys.stderr.write("Unable to create src pad bin \n")
         srcpad.link(sinkpad)
+
+    preprocess = Gst.ElementFactory("nvdspreprocess", "preprocess-plugin")
+    if not preprocess:
+        sys.stderr.write(" Unable to create preprocess \n")
+    
     queue1=Gst.ElementFactory.make("queue","queue1")
     queue2=Gst.ElementFactory.make("queue","queue2")
     queue3=Gst.ElementFactory.make("queue","queue3")
     queue4=Gst.ElementFactory.make("queue","queue4")
     queue5=Gst.ElementFactory.make("queue","queue5")
     queue6=Gst.ElementFactory.make("queue","queue6")
+    queue7=Gst.ElementFactory.make("queue","queue7")
     pipeline.add(queue1)
     pipeline.add(queue2)
     pipeline.add(queue3)
     pipeline.add(queue4)
     pipeline.add(queue5)
     pipeline.add(queue6)
+    pipeline.add(queue7)
 
     nvdslogger = None
     transform = None
@@ -393,6 +400,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     streammux.set_property('height', 1080)
     streammux.set_property('batch-size', number_sources)
     streammux.set_property('batched-push-timeout', 4000000)
+    preprocess.set_property("config-file", "config_preprocess.txt")
 
     if requested_pgie == "nvinferserver" and config != None:
         pgie.set_property('config-file-path', config)
@@ -445,6 +453,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
 
 
     print("Adding elements to Pipeline \n")
+    pipeline.add(preprocess)
     pipeline.add(pgie)
     pipeline.add(tracker)
     if nvdslogger:
@@ -458,27 +467,29 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
 
     print("Linking elements in the Pipeline \n")
     streammux.link(queue1)
-    queue1.link(pgie)
-    pgie.link(queue2)
-    queue2.link(tracker)
-    tracker.link(queue3)
+    queue1.link(preprocess)
+    preprocess.link(queue2)
+    queue2.link(pgie)
+    pgie.link(queue3)
+    queue3.link(tracker)
+    tracker.link(queue4)
     print("link tracker to queue3")
     if nvdslogger:
-        queue3.link(nvdslogger)
+        queue4.link(nvdslogger)
         nvdslogger.link(tiler)
     else:
-        queue3.link(tiler)
-    tiler.link(queue4)
-    queue4.link(nvvidconv)
-    nvvidconv.link(queue5)
-    queue5.link(nvosd)
+        queue4.link(tiler)
+    tiler.link(queue5)
+    queue5.link(nvvidconv)
+    nvvidconv.link(queue6)
+    queue6.link(nvosd)
     if transform:
-        nvosd.link(queue6)
-        queue6.link(transform)
+        nvosd.link(queue7)
+        queue7.link(transform)
         transform.link(sink)
     else:
-        nvosd.link(queue6)
-        queue6.link(sink)   
+        nvosd.link(queue7)
+        queue7.link(sink)   
 
     # create an event loop and feed gstreamer bus mesages to it
     loop = GLib.MainLoop()
