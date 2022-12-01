@@ -92,34 +92,6 @@ def pgie_src_pad_buffer_probe(pad,info,u_data):
             except StopIteration:
                 break
             obj_counter[obj_meta.class_id] += 1
-
-            l_user_meta=obj_meta.obj_user_meta_list
-            while l_user_meta:
-                print("###########################")
-                try:
-                    user_meta = pyds.NvDsUserMeta.cast(l_user_meta.data)
-                    if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):             
-                        user_meta_data = pyds.NvDsAnalyticsObjInfo.cast(user_meta.user_meta_data)
-                        if user_meta_data.dirStatus: print("Object {0} moving in direction: {1}".format(obj_meta.object_id, user_meta_data.dirStatus))                    
-                        if user_meta_data.lcStatus: print("Object {0} line crossing status: {1}".format(obj_meta.object_id, user_meta_data.lcStatus))
-                        if user_meta_data.ocStatus: print("Object {0} overcrowding status: {1}".format(obj_meta.object_id, user_meta_data.ocStatus))
-                        if user_meta_data.roiStatus: print("Object {0} roi status: {1}".format(obj_meta.object_id, user_meta_data.roiStatus))
-                except StopIteration:
-                    break
-
-                try:
-                    l_user_meta = l_user_meta.next
-                except StopIteration:
-                    break
-
-### detect bbox info get
-            # obj_meta.rect_params.border_color.set(0.0, 1.0, 1.0, 0.8)
-            # bbox_left = obj_meta.detector_bbox_info.org_bbox_coords.left
-            # bbox_top = obj_meta.detector_bbox_info.org_bbox_coords.top
-            # bbox_width = obj_meta.detector_bbox_info.org_bbox_coords.width
-            # bbox_height = obj_meta.detector_bbox_info.org_bbox_coords.height
-        
-            # print("bbox_left : ", bbox_left, "bbox_top : ", bbox_top, "bbox_width : ", bbox_width, "bbox_height : ", bbox_height)
             try: 
                 l_obj=l_obj.next
             except StopIteration:
