@@ -59,7 +59,8 @@ TRACKING_PROCESS = 1
 past_tracking_meta=[0]
 pgie_classes_str= ["Car", "Person"]
 
-def pgie_src_pad_buffer_probe(pad,info,u_data):
+# def pgie_src_pad_buffer_probe(pad,info,u_data):
+def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
     frame_number=0
     num_rects=0
     got_fps = False
@@ -70,6 +71,7 @@ def pgie_src_pad_buffer_probe(pad,info,u_data):
 
     batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))
     l_frame = batch_meta.frame_meta_list
+
     while l_frame is not None:
         try:
             frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
@@ -84,6 +86,7 @@ def pgie_src_pad_buffer_probe(pad,info,u_data):
             PGIE_CLASS_ID_PERSON:0,
         }
         # while l_obj is not None:
+        print("#"*50)
         while l_obj :
             try: 
                 # Casting l_obj.data to pyds.NvDsObjectMeta
@@ -96,14 +99,13 @@ def pgie_src_pad_buffer_probe(pad,info,u_data):
             while l_user_meta:
                 try:
                     user_meta = pyds.NvDsUserMeta.cast(l_user_meta.data)
-                    print("check this line 99")
-                    if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):             
-                        print("check this line 101")
+                    if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):   
                         user_meta_data = pyds.NvDsAnalyticsObjInfo.cast(user_meta.user_meta_data)
-                        if user_meta_data.dirStatus: print("Object {0} moving in direction: {1}".format(obj_meta.object_id, user_meta_data.dirStatus))                    
-                        if user_meta_data.lcStatus: print("Object {0} line crossing status: {1}".format(obj_meta.object_id, user_meta_data.lcStatus))
-                        if user_meta_data.ocStatus: print("Object {0} overcrowding status: {1}".format(obj_meta.object_id, user_meta_data.ocStatus))
-                        if user_meta_data.roiStatus: print("Object {0} roi status: {1}".format(obj_meta.object_id, user_meta_data.roiStatus))
+                        # if user_meta_data.dirStatus: print("Object {0} moving in direction: {1}".format(obj_meta.object_id, user_meta_data.dirStatus))                    
+                        # if user_meta_data.lcStatus: print("Object {0} line crossing status: {1}".format(obj_meta.object_id, user_meta_data.lcStatus))
+                        # if user_meta_data.ocStatus: print("Object {0} overcrowding status: {1}".format(obj_meta.object_id, user_meta_data.ocStatus))
+                        if user_meta_data.roiStatus: 
+                            print("Object {0} roi status: {1}".format(obj_meta.object_id, user_meta_data.roiStatus))
                 except StopIteration:
                     break
 
@@ -118,18 +120,16 @@ def pgie_src_pad_buffer_probe(pad,info,u_data):
          
 
         l_user = frame_meta.frame_user_meta_list
-        # print("111 l_user : ", l_user)
-        # print("111111")
         while l_user:
-            # print("222 l_user : ", l_user)
             try:
                 user_meta = pyds.NvDsUserMeta.cast(l_user.data)
                 if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSFRAME.USER_META"):
                     user_meta_data = pyds.NvDsAnalyticsFrameMeta.cast(user_meta.user_meta_data)
-                    if user_meta_data.objInROIcnt: print("Objs in ROI: {0}".format(user_meta_data.objInROIcnt))                    
-                    if user_meta_data.objLCCumCnt: print("Linecrossing Cumulative: {0}".format(user_meta_data.objLCCumCnt))
-                    if user_meta_data.objLCCurrCnt: print("Linecrossing Current Frame: {0}".format(user_meta_data.objLCCurrCnt))
-                    if user_meta_data.ocStatus: print("Overcrowding status: {0}".format(user_meta_data.ocStatus))
+                    if user_meta_data.objInROIcnt: 
+                        print("Objs in ROI: {0}".format(user_meta_data.objInROIcnt))                    
+                    # if user_meta_data.objLCCumCnt: print("Linecrossing Cumulative: {0}".format(user_meta_data.objLCCumCnt))
+                    # if user_meta_data.objLCCurrCnt: print("Linecrossing Current Frame: {0}".format(user_meta_data.objLCCurrCnt))
+                    # if user_meta_data.ocStatus: print("Overcrowding status: {0}".format(user_meta_data.ocStatus))
             except StopIteration:
                 break
             try:
@@ -423,9 +423,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     tracker.link(queue3)
     queue3.link(nvanalytics)
     nvanalytics.link(queue4)
-    print("##########################testtesttest")
-
-    print("link tracker to queue3")
+    
     if nvdslogger:
         queue4.link(nvdslogger)
         nvdslogger.link(tiler)
@@ -448,14 +446,25 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     bus = pipeline.get_bus()
     bus.add_signal_watch()
     bus.connect ("message", bus_call, loop)
-    pgie_src_pad=pgie.get_static_pad("src")
-    if not pgie_src_pad:
+
+    nvanalytics_src_pad=nvanalytics.get_static_pad("src")
+    if not nvanalytics_src_pad:
         sys.stderr.write(" Unable to get src pad \n")
     else:
         # if not disable_probe:
-        pgie_src_pad.add_probe(Gst.PadProbeType.BUFFER, pgie_src_pad_buffer_probe, 0)
+        nvanalytics_src_pad.add_probe(Gst.PadProbeType.BUFFER, nvanalytics_src_pad_buffer_probe, 0)
         # perf callback function to print fps every 5 sec
         GLib.timeout_add(5000, perf_data.perf_print_callback)
+
+
+    # pgie_src_pad=pgie.get_static_pad("src")
+    # if not pgie_src_pad:
+    #     sys.stderr.write(" Unable to get src pad \n")
+    # else:
+    #     # if not disable_probe:
+    #     pgie_src_pad.add_probe(Gst.PadProbeType.BUFFER, pgie_src_pad_buffer_probe, 0)
+    #     # perf callback function to print fps every 5 sec
+    #     GLib.timeout_add(5000, perf_data.perf_print_callback)
 
     # List the sources
     print("Now playing...")
