@@ -95,6 +95,12 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                 break
             obj_counter[obj_meta.class_id] += 1
 
+            if (obj_meta.class_id == 0):
+                obj_meta.rect_params.border_width = 0
+                # obj_meta.rect_params.has_bg_color = 0
+                obj_meta.text_params.text_bg_clr.alpha =0
+                obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
+           
             l_user_meta=obj_meta.obj_user_meta_list
             while l_user_meta:
                 try:
@@ -104,8 +110,17 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                         # if user_meta_data.dirStatus: print("Object {0} moving in direction: {1}".format(obj_meta.object_id, user_meta_data.dirStatus))                    
                         # if user_meta_data.lcStatus: print("Object {0} line crossing status: {1}".format(obj_meta.object_id, user_meta_data.lcStatus))
                         # if user_meta_data.ocStatus: print("Object {0} overcrowding status: {1}".format(obj_meta.object_id, user_meta_data.ocStatus))
-                        if user_meta_data.roiStatus: 
+                        if (user_meta_data.roiStatus) and (obj_meta.class_id == 0) : 
+                            obj_meta.text_params.text_bg_clr.alpha =1
+                            obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
+                            obj_meta.rect_params.border_width = 0
+                            obj_meta.rect_params.has_bg_color = 1
+                            obj_meta.rect_params.bg_color.red = 0.0
+                            obj_meta.rect_params.bg_color.green = 1.0
+                            obj_meta.rect_params.bg_color.blue = 0.0
+                            obj_meta.rect_params.bg_color.alpha = 0.5
                             print("Object {0} roi status: {1}".format(obj_meta.object_id, user_meta_data.roiStatus))
+
                 except StopIteration:
                     break
 
