@@ -115,10 +115,6 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                             obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
                             obj_meta.rect_params.border_width = 0
                             obj_meta.rect_params.has_bg_color = 1
-                            # obj_meta.rect_params.bg_color.red = 0.0
-                            # obj_meta.rect_params.bg_color.green = 1.0
-                            # obj_meta.rect_params.bg_color.blue = 0.0
-                            # obj_meta.rect_params.bg_color.alpha = 0.5
                             obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
                             print("Object {0} roi status: {1}".format(obj_meta.object_id, user_meta_data.roiStatus))
 
