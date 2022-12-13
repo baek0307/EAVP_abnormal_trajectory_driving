@@ -97,16 +97,11 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
             obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 0.0)
 
             if (obj_meta.class_id == 0):
-                obj_meta.text_params.text_bg_clr.alpha =0
-                obj_meta.text_params.font_params.font_color.set(0.0, 1.0, 0.0, 0.0)
-                obj_meta.rect_params.border_width = 0
+                obj_meta.text_params.text_bg_clr.alpha = 0.8
+                obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
+                obj_meta.rect_params.border_width = 2
                 obj_meta.rect_params.has_bg_color = 0
-                obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
-                # obj_meta.rect_params.border_width = 2
-                # # obj_meta.rect_params.has_bg_color = 0
-                # obj_meta.text_params.font_params.font_size =10
-                # obj_meta.text_params.text_bg_clr.alpha =0.8
-                # obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
+                obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.0)
 
             l_user_meta=obj_meta.obj_user_meta_list
             while l_user_meta:
@@ -115,11 +110,6 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                     if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):   
                         user_meta_data = pyds.NvDsAnalyticsObjInfo.cast(user_meta.user_meta_data)
                         if (user_meta_data.roiStatus) and (obj_meta.class_id == 0) : 
-                            # obj_meta.text_params.text_bg_clr.alpha =0
-                            # obj_meta.text_params.font_params.font_color.set(0.0, 1.0, 0.0, 0.0)
-                            # obj_meta.rect_params.border_width = 0
-                            # obj_meta.rect_params.has_bg_color = 0
-                            # obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
                             obj_meta.rect_params.border_width = 2
                             obj_meta.text_params.font_params.font_size =10
                             obj_meta.text_params.text_bg_clr.alpha =0.0
@@ -136,14 +126,6 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                 except StopIteration:
                     break
 
-### detect bbox info get
-            # obj_meta.rect_params.border_color.set(0.0, 1.0, 1.0, 0.8)
-            # bbox_left = obj_meta.detector_bbox_info.org_bbox_coords.left
-            # bbox_top = obj_meta.detector_bbox_info.org_bbox_coords.top
-            # bbox_width = obj_meta.detector_bbox_info.org_bbox_coords.width
-            # bbox_height = obj_meta.detector_bbox_info.org_bbox_coords.height
-        
-            # print("bbox_left : ", bbox_left, "bbox_top : ", bbox_top, "bbox_width : ", bbox_width, "bbox_height : ", bbox_height)
             try: 
                 l_obj=l_obj.next
             except StopIteration:
@@ -332,21 +314,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     if not nvanalytics:
         sys.stderr.write(" Unable to create nvanalytics \n")
     
-    print("#@@@@@@@@@@@@@@@@@@@@@@@@@@@uri name : ",uri_name)
-    if uri_name.find("cctv1") :
-        nvanalytics.set_property("config-file", "nvdsanalytics_cctv01.txt")
-        print("I'm cctv1 test")
-    elif uri_name.find("cctv2") :
-        nvanalytics.set_property("config-file", "nvdsanalytics_cctv02.txt")
-        print("I'm cctv2 test")
-    elif uri_name.find("cctv3") :
-        nvanalytics.set_property("config-file", "nvdsanalytics_cctv03.txt")
-        print("I'm cctv3 test")
-    elif uri_name.find("cctv4") :
-        nvanalytics.set_property("config-file", "nvdsanalytics_cctv04.txt")
-        print("I'm cctv4 test")
-    # else :
-    #     nvanalytics.set_property("config-file", "config_nvdsanalytics_test.txt")
+    nvanalytics.set_property("config-file", "config_nvdsanalytics_test.txt")
 
     if disable_probe:
         # Use nvdslogger for perf measurement instead of probe function
