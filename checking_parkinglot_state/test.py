@@ -42,7 +42,7 @@ file_loop = False
 perf_data = None
 
 
-PGIE_CONFIG_FILE = "pgie_config_yolov4.txt"
+PGIE_CONFIG_FILE = "pgie_config_yolov4_test.txt"
 TRACKER_CONFIG_FILE = "dstest2_tracker_config.txt"
 MAX_DISPLAY_LEN=64
 PGIE_CLASS_ID_CAR = 0
