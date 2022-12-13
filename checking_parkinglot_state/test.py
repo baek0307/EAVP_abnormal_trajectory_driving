@@ -37,7 +37,7 @@ from common.FPS import PERF_DATA
 import pyds
 
 no_display = False
-silent = False
+silent = True
 file_loop = False
 perf_data = None
 
@@ -52,7 +52,6 @@ MUXER_OUTPUT_HEIGHT=1080
 MUXER_BATCH_TIMEOUT_USEC=4000000
 TILED_OUTPUT_WIDTH=1920
 TILED_OUTPUT_HEIGHT=1080
-
 GST_CAPS_FEATURES_NVMM="memory:NVMM"
 OSD_PROCESS_MODE= 0
 OSD_DISPLAY_TEXT= 1
@@ -60,8 +59,9 @@ TRACKING_PROCESS = 1
 past_tracking_meta=[0]
 pgie_classes_str= ["Car", "Person"]
 
-# def pgie_src_pad_buffer_probe(pad,info,u_data):
-def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
+# pgie_src_pad_buffer_probe  will extract metadata received on tiler sink pad
+# and update params for drawing rectangle, object information etc.
+def pgie_src_pad_buffer_probe(pad,info,u_data):
     frame_number=0
     num_rects=0
     got_fps = False
@@ -72,7 +72,6 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
 
     batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))
     l_frame = batch_meta.frame_meta_list
-
     while l_frame is not None:
         try:
             frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
@@ -86,9 +85,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
             PGIE_CLASS_ID_CAR:0,
             PGIE_CLASS_ID_PERSON:0,
         }
-        # while l_obj is not None:
-        print("#"*50)
-        while l_obj :
+        while l_obj is not None:
             try: 
                 # Casting l_obj.data to pyds.NvDsObjectMeta
                 obj_meta=pyds.NvDsObjectMeta.cast(l_obj.data)
@@ -97,28 +94,23 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
             obj_counter[obj_meta.class_id] += 1
 
             if (obj_meta.class_id == 0):
-                obj_meta.rect_params.border_width = 1
+                obj_meta.rect_params.border_width = 2
                 # obj_meta.rect_params.has_bg_color = 0
-                obj_meta.text_params.size =5
+                obj_meta.text_params.font_params.font_size =1
                 obj_meta.text_params.text_bg_clr.alpha =0.8
                 obj_meta.text_params.font_params.font_color.set(0.0, 0.0, 1.0, 1.0)
-           
+
             l_user_meta=obj_meta.obj_user_meta_list
             # while l_user_meta:
+            #     print("###########################")
             #     try:
             #         user_meta = pyds.NvDsUserMeta.cast(l_user_meta.data)
-            #         if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):   
+            #         if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):             
             #             user_meta_data = pyds.NvDsAnalyticsObjInfo.cast(user_meta.user_meta_data)
-            #             if (user_meta_data.roiStatus) and (obj_meta.class_id == 0) : 
-            #                 obj_meta.text_params.text_bg_clr.alpha =1
-            #                 # obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
-            #                 obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
-            #                 obj_meta.rect_params.border_width = 0
-            #                 obj_meta.rect_params.has_bg_color = 1
-            #                 # obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
-            #                 obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.0)
-            #                 print("Object {0} roi status: {1}".format(obj_meta.object_id, user_meta_data.roiStatus))
-
+            #             if user_meta_data.dirStatus: print("Object {0} moving in direction: {1}".format(obj_meta.object_id, user_meta_data.dirStatus))                    
+            #             if user_meta_data.lcStatus: print("Object {0} line crossing status: {1}".format(obj_meta.object_id, user_meta_data.lcStatus))
+            #             if user_meta_data.ocStatus: print("Object {0} overcrowding status: {1}".format(obj_meta.object_id, user_meta_data.ocStatus))
+            #             if user_meta_data.roiStatus: print("Object {0} roi status: {1}".format(obj_meta.object_id, user_meta_data.roiStatus))
             #     except StopIteration:
             #         break
 
@@ -126,31 +118,48 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
             #         l_user_meta = l_user_meta.next
             #     except StopIteration:
             #         break
+
+### detect bbox info get
+            # obj_meta.rect_params.border_color.set(0.0, 1.0, 1.0, 0.8)
+            # bbox_left = obj_meta.detector_bbox_info.org_bbox_coords.left
+            # bbox_top = obj_meta.detector_bbox_info.org_bbox_coords.top
+            # bbox_width = obj_meta.detector_bbox_info.org_bbox_coords.width
+            # bbox_height = obj_meta.detector_bbox_info.org_bbox_coords.height
+        
+            # print("bbox_left : ", bbox_left, "bbox_top : ", bbox_top, "bbox_width : ", bbox_width, "bbox_height : ", bbox_height)
             try: 
                 l_obj=l_obj.next
             except StopIteration:
                 break
-         
-
-        l_user = frame_meta.frame_user_meta_list
-        while l_user:
-            try:
-                user_meta = pyds.NvDsUserMeta.cast(l_user.data)
-                if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSFRAME.USER_META"):
-                    user_meta_data = pyds.NvDsAnalyticsFrameMeta.cast(user_meta.user_meta_data)
-                    if user_meta_data.objInROIcnt: 
-                        print("Objs in ROI: {0}".format(user_meta_data.objInROIcnt))                    
-                    
-            except StopIteration:
-                break
-            try:
-                l_user = l_user.next
-            except StopIteration:
-                break
-        
         # if not silent:
         #     print("Frame Number=", frame_number, "Number of Objects=",num_rects,"Vehicle_count=",obj_counter[PGIE_CLASS_ID_CAR],"Person_count=",obj_counter[PGIE_CLASS_ID_PERSON])
-        
+
+#### add this code
+#### detection info OSD code
+        # display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
+        # display_meta.num_labels = 1
+        # py_nvosd_text_params = display_meta.text_params[0]
+        # py_nvosd_text_params.display_text = "Frame Number={} Number of Objects={} Vehicle_count={} Person_count={}".format(frame_number, num_rects, obj_counter[PGIE_CLASS_ID_CAR], obj_counter[PGIE_CLASS_ID_PERSON])
+
+        # # Now set the offsets where the string should appear
+        # py_nvosd_text_params.x_offset = 10
+        # py_nvosd_text_params.y_offset = 12
+
+        # # Font , font-color and font-size
+        # py_nvosd_text_params.font_params.font_name = "Serif"
+        # py_nvosd_text_params.font_params.font_size = 10
+        # # set(red, green, blue, alpha); set to White
+        # py_nvosd_text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
+
+        # # Text background color
+        # py_nvosd_text_params.set_bg_clr = 1
+        # # set(red, green, blue, alpha); set to Black
+        # py_nvosd_text_params.text_bg_clr.set(0.0, 0.0, 0.0, 1.0)
+        # # Using pyds.get_string() to get display_text as string
+        # print(pyds.get_string(py_nvosd_text_params.display_text))
+        # pyds.nvds_add_display_meta_to_frame(frame_meta, display_meta)
+### add end
+
         # Update frame rate through this probe
         stream_index = "stream{0}".format(frame_meta.pad_index)
         global perf_data
@@ -233,80 +242,6 @@ def create_source_bin(index,uri):
     return nbin
 
 
-#object databank for tracking
-class databank :
-
-    danger_area = []
-    parking_area = []
-    not_parking_area = []
-    parking_space = []
-    availableParking = 0
-    previousAvailableParking = 0
-    cctvState = "valid"
-    sendParkingOutside = ["","",""]
-    sendPedestrian = ["","",""]
-    
-    # Define parameters
-    object_list = []
-    carEvent_list = {}
-    personEvent_list = {}
-    event_list = []
-    numOfSpaces= 0
-    eventPedestrian, eventParkingOutside = False,False
-    dangerPerson = []
-    outsideCar = []
-
-    def clear_part1(self):
-        databank.danger_area = []
-        databank.parking_area = []
-        databank.not_parking_area = []
-        databank.parking_space = []
-        databank.availableParking = 0
-        # databank.previousAvailableParking = 0
-        # databank.cctvState = "valid"
-        self.cctvState = "valid"
-    
-    def clear_part2(self):
-        databank.object_list = []
-        databank.carEvent_list = {}
-        databank.personEvent_list = {}
-        databank.event_list = []
-        self.numOfSpaces= 0
-        self.eventPedestrian = False
-        self.eventParkingOutside = False
-        databank.dangerPerson = []
-        databank.outsideCar = []
-
-    def clear_json_parkinglot(self) :
-        databank.cctv_rest_parkinglot = {}
-
-    def clear_json_congest(self) :
-        databank.cctv_rest_congest = {}
-
-    def clear_json_event(self) :
-        databank.cctv_test_congest = {}
-
-    def set_send_parking_timer(self,channel,time) :
-        self.send_parking_timer[channel-1] += time
-    def set_send_timer(self,channel,time) :
-        self.send_timer[channel-1] += time
-    def set_past_send_timer(self,channel,time) :
-        self.past_send_timer[channel-1] = time
-    
-
-    def clear_send_parking_timer(self,channel) :
-        self.send_parking_timer[channel-1] = 0        
-    def clear_send_timer(self,channel) :
-        self.send_timer[channel-1] = 0        
-
-    def set_send_congest_timer(self,channel,time) :
-        self.send_congest_timer[channel-1] = time
-    def set_past_send_congest_timer(self,channel,time) :
-        self.past_send_congest_timer[channel-1] = time
-    def clear_send_congest_timer(self,channel) :
-        self.send_congest_timer[channel-1] = 0
-
-
 def main(args, requested_pgie=None, request_tracker=None, config=None, disable_probe=False):
     global perf_data
     perf_data = PERF_DATA(len(args))
@@ -355,14 +290,12 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     queue4=Gst.ElementFactory.make("queue","queue4")
     queue5=Gst.ElementFactory.make("queue","queue5")
     queue6=Gst.ElementFactory.make("queue","queue6")
-    queue7=Gst.ElementFactory.make("queue","queue7")
     pipeline.add(queue1)
-    # pipeline.add(queue2)
+    pipeline.add(queue2)
     pipeline.add(queue3)
     pipeline.add(queue4)
     pipeline.add(queue5)
     pipeline.add(queue6)
-    pipeline.add(queue7)
 
     nvdslogger = None
     transform = None
@@ -382,12 +315,6 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     tracker = Gst.ElementFactory.make("nvtracker", "tracker")
     if not tracker:
         sys.stderr.write(" Unable to create tracker \n")
-
-    print("Creating nvdsanalytics \n ")
-    nvanalytics = Gst.ElementFactory.make("nvdsanalytics", "analytics")
-    if not nvanalytics:
-        sys.stderr.write(" Unable to create nvanalytics \n")
-    nvanalytics.set_property("config-file", "config_nvdsanalytics_test.txt")
 
     if disable_probe:
         # Use nvdslogger for perf measurement instead of probe function
@@ -489,8 +416,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
 
     print("Adding elements to Pipeline \n")
     pipeline.add(pgie)
-    # pipeline.add(tracker)
-    pipeline.add(nvanalytics)
+    pipeline.add(tracker)
     if nvdslogger:
         pipeline.add(nvdslogger)
     pipeline.add(tiler)
@@ -503,53 +429,40 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     print("Linking elements in the Pipeline \n")
     streammux.link(queue1)
     queue1.link(pgie)
-    pgie.link(queue3)
-    # queue2.link(tracker)
-    # tracker.link(queue3)
-    queue3.link(nvanalytics)
-    nvanalytics.link(queue4)
-    
+    pgie.link(queue2)
+    queue2.link(tracker)
+    tracker.link(queue3)
+    print("link tracker to queue3")
     if nvdslogger:
-        queue4.link(nvdslogger)
+        queue3.link(nvdslogger)
         nvdslogger.link(tiler)
     else:
-        queue4.link(tiler)
-    tiler.link(queue5)
-    queue5.link(nvvidconv)
-    nvvidconv.link(queue6)
-    queue6.link(nvosd)
+        queue3.link(tiler)
+    tiler.link(queue4)
+    queue4.link(nvvidconv)
+    nvvidconv.link(queue5)
+    queue5.link(nvosd)
     if transform:
-        nvosd.link(queue7)
-        queue7.link(transform)
+        nvosd.link(queue6)
+        queue6.link(transform)
         transform.link(sink)
     else:
-        nvosd.link(queue7)
-        queue7.link(sink)   
+        nvosd.link(queue6)
+        queue6.link(sink)   
 
     # create an event loop and feed gstreamer bus mesages to it
     loop = GLib.MainLoop()
     bus = pipeline.get_bus()
     bus.add_signal_watch()
     bus.connect ("message", bus_call, loop)
-
-    nvanalytics_src_pad=nvanalytics.get_static_pad("src")
-    if not nvanalytics_src_pad:
+    pgie_src_pad=pgie.get_static_pad("src")
+    if not pgie_src_pad:
         sys.stderr.write(" Unable to get src pad \n")
     else:
-        # if not disable_probe:
-        nvanalytics_src_pad.add_probe(Gst.PadProbeType.BUFFER, nvanalytics_src_pad_buffer_probe, 0)
-        # perf callback function to print fps every 5 sec
-        GLib.timeout_add(5000, perf_data.perf_print_callback)
-
-
-    # pgie_src_pad=pgie.get_static_pad("src")
-    # if not pgie_src_pad:
-    #     sys.stderr.write(" Unable to get src pad \n")
-    # else:
-    #     # if not disable_probe:
-    #     pgie_src_pad.add_probe(Gst.PadProbeType.BUFFER, pgie_src_pad_buffer_probe, 0)
-    #     # perf callback function to print fps every 5 sec
-    #     GLib.timeout_add(5000, perf_data.perf_print_callback)
+        if not disable_probe:
+            pgie_src_pad.add_probe(Gst.PadProbeType.BUFFER, pgie_src_pad_buffer_probe, 0)
+            # perf callback function to print fps every 5 sec
+            GLib.timeout_add(5000, perf_data.perf_print_callback)
 
     # List the sources
     print("Now playing...")
