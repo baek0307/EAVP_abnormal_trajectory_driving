@@ -36,9 +36,7 @@ display-font-size=20
 enable=1
 #ROI to filter select objects, and remove from meta data
 
-roi-ch4-1 = 1920; 1080; 1784; 1080; 1096; 207; 1104; 158; 1417; 158; 1912; 347
-
-roi-ch4-2 = 7; 557; 71; 370; 363; 208; 470; 162; 832; 164; 841; 215; 479; 555
+roi-ch1 = 378; 754; 676; 468; 675; 319; 3; 366; 6; 522; 293; 425; 310; 427; 11; 592; 8; 723;
 
 #remove objects in the ROI
 inverse-roi=0

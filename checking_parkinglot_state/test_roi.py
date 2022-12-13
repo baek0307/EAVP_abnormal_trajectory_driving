@@ -52,7 +52,6 @@ MUXER_OUTPUT_HEIGHT=1080
 MUXER_BATCH_TIMEOUT_USEC=4000000
 TILED_OUTPUT_WIDTH=1920
 TILED_OUTPUT_HEIGHT=1080
-
 GST_CAPS_FEATURES_NVMM="memory:NVMM"
 OSD_PROCESS_MODE= 0
 OSD_DISPLAY_TEXT= 1
@@ -63,10 +62,6 @@ pgie_classes_str= ["Car", "Person"]
 # def pgie_src_pad_buffer_probe(pad,info,u_data):
 def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
     frame_number=0
-    obj_counter = {
-            PGIE_CLASS_ID_CAR:0,
-            PGIE_CLASS_ID_PERSON:0,
-        }
     num_rects=0
     got_fps = False
     gst_buffer = info.get_buffer()
@@ -76,6 +71,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
 
     batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))
     l_frame = batch_meta.frame_meta_list
+
     while l_frame is not None:
         try:
             frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
@@ -85,21 +81,25 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
         frame_number=frame_meta.frame_num
         l_obj=frame_meta.obj_meta_list
         num_rects = frame_meta.num_obj_meta
-        
-        
-        while l_obj is not None:
+        obj_counter = {
+            PGIE_CLASS_ID_CAR:0,
+            PGIE_CLASS_ID_PERSON:0,
+        }
+        # while l_obj is not None:
+        print("#"*50)
+        while l_obj :
             try: 
                 # Casting l_obj.data to pyds.NvDsObjectMeta
                 obj_meta=pyds.NvDsObjectMeta.cast(l_obj.data)
             except StopIteration:
                 break
             obj_counter[obj_meta.class_id] += 1
-            obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 0.0)
-            
+
             if (obj_meta.class_id == 0):
-                obj_meta.rect_params.border_width = 1
-                obj_meta.text_params.text_bg_clr.alpha =0.8
-                obj_meta.text_params.font_params.font_color.set(0.0, 0.0, 1.0, 1.0)
+                obj_meta.rect_params.border_width = 0
+                # obj_meta.rect_params.has_bg_color = 0
+                obj_meta.text_params.text_bg_clr.alpha =0
+                obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
            
             l_user_meta=obj_meta.obj_user_meta_list
             while l_user_meta:
@@ -107,14 +107,15 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                     user_meta = pyds.NvDsUserMeta.cast(l_user_meta.data)
                     if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):   
                         user_meta_data = pyds.NvDsAnalyticsObjInfo.cast(user_meta.user_meta_data)
+                        # if user_meta_data.dirStatus: print("Object {0} moving in direction: {1}".format(obj_meta.object_id, user_meta_data.dirStatus))                    
+                        # if user_meta_data.lcStatus: print("Object {0} line crossing status: {1}".format(obj_meta.object_id, user_meta_data.lcStatus))
+                        # if user_meta_data.ocStatus: print("Object {0} overcrowding status: {1}".format(obj_meta.object_id, user_meta_data.ocStatus))
                         if (user_meta_data.roiStatus) and (obj_meta.class_id == 0) : 
                             obj_meta.text_params.text_bg_clr.alpha =1
-                            # obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
-                            obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
+                            obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
                             obj_meta.rect_params.border_width = 0
                             obj_meta.rect_params.has_bg_color = 1
-                            # obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
-                            obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.0)
+                            obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
                             print("Object {0} roi status: {1}".format(obj_meta.object_id, user_meta_data.roiStatus))
 
                 except StopIteration:
@@ -138,7 +139,9 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                     user_meta_data = pyds.NvDsAnalyticsFrameMeta.cast(user_meta.user_meta_data)
                     if user_meta_data.objInROIcnt: 
                         print("Objs in ROI: {0}".format(user_meta_data.objInROIcnt))                    
-                    
+                    # if user_meta_data.objLCCumCnt: print("Linecrossing Cumulative: {0}".format(user_meta_data.objLCCumCnt))
+                    # if user_meta_data.objLCCurrCnt: print("Linecrossing Current Frame: {0}".format(user_meta_data.objLCCurrCnt))
+                    # if user_meta_data.ocStatus: print("Overcrowding status: {0}".format(user_meta_data.ocStatus))
             except StopIteration:
                 break
             try:
@@ -274,14 +277,14 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
             sys.stderr.write("Unable to create src pad bin \n")
         srcpad.link(sinkpad)
     queue1=Gst.ElementFactory.make("queue","queue1")
-    # queue2=Gst.ElementFactory.make("queue","queue2")
+    queue2=Gst.ElementFactory.make("queue","queue2")
     queue3=Gst.ElementFactory.make("queue","queue3")
     queue4=Gst.ElementFactory.make("queue","queue4")
     queue5=Gst.ElementFactory.make("queue","queue5")
     queue6=Gst.ElementFactory.make("queue","queue6")
     queue7=Gst.ElementFactory.make("queue","queue7")
     pipeline.add(queue1)
-    # pipeline.add(queue2)
+    pipeline.add(queue2)
     pipeline.add(queue3)
     pipeline.add(queue4)
     pipeline.add(queue5)
@@ -302,10 +305,10 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     if not pgie:
         sys.stderr.write(" Unable to create pgie :  %s\n" % requested_pgie)
 
-    # print("Creating Tracker \n ")
-    # tracker = Gst.ElementFactory.make("nvtracker", "tracker")
-    # if not tracker:
-    #     sys.stderr.write(" Unable to create tracker \n")
+    print("Creating Tracker \n ")
+    tracker = Gst.ElementFactory.make("nvtracker", "tracker")
+    if not tracker:
+        sys.stderr.write(" Unable to create tracker \n")
 
     print("Creating nvdsanalytics \n ")
     nvanalytics = Gst.ElementFactory.make("nvdsanalytics", "analytics")
@@ -383,37 +386,37 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     sink.set_property("qos",0)
 
     #Set properties of tracker
-    # config = configparser.ConfigParser()
-    # config.read(TRACKER_CONFIG_FILE)
-    # config.sections()
+    config = configparser.ConfigParser()
+    config.read(TRACKER_CONFIG_FILE)
+    config.sections()
 
-    # for key in config['tracker']:
-    #     if key == 'tracker-width' :
-    #         tracker_width = config.getint('tracker', key)
-    #         tracker.set_property('tracker-width', tracker_width)
-    #     if key == 'tracker-height' :
-    #         tracker_height = config.getint('tracker', key)
-    #         tracker.set_property('tracker-height', tracker_height)
-    #     if key == 'gpu-id' :
-    #         tracker_gpu_id = config.getint('tracker', key)
-    #         tracker.set_property('gpu_id', tracker_gpu_id)
-    #     if key == 'll-lib-file' :
-    #         tracker_ll_lib_file = config.get('tracker', key)
-    #         tracker.set_property('ll-lib-file', tracker_ll_lib_file)
-    #     if key == 'll-config-file' :
-    #         tracker_ll_config_file = config.get('tracker', key)
-    #         tracker.set_property('ll-config-file', tracker_ll_config_file)
-    #     if key == 'enable-batch-process' :
-    #         tracker_enable_batch_process = config.getint('tracker', key)
-    #         tracker.set_property('enable_batch_process', tracker_enable_batch_process)
-    #     if key == 'enable-past-frame' :
-    #         tracker_enable_past_frame = config.getint('tracker', key)
-    #         tracker.set_property('enable_past_frame', tracker_enable_past_frame)
+    for key in config['tracker']:
+        if key == 'tracker-width' :
+            tracker_width = config.getint('tracker', key)
+            tracker.set_property('tracker-width', tracker_width)
+        if key == 'tracker-height' :
+            tracker_height = config.getint('tracker', key)
+            tracker.set_property('tracker-height', tracker_height)
+        if key == 'gpu-id' :
+            tracker_gpu_id = config.getint('tracker', key)
+            tracker.set_property('gpu_id', tracker_gpu_id)
+        if key == 'll-lib-file' :
+            tracker_ll_lib_file = config.get('tracker', key)
+            tracker.set_property('ll-lib-file', tracker_ll_lib_file)
+        if key == 'll-config-file' :
+            tracker_ll_config_file = config.get('tracker', key)
+            tracker.set_property('ll-config-file', tracker_ll_config_file)
+        if key == 'enable-batch-process' :
+            tracker_enable_batch_process = config.getint('tracker', key)
+            tracker.set_property('enable_batch_process', tracker_enable_batch_process)
+        if key == 'enable-past-frame' :
+            tracker_enable_past_frame = config.getint('tracker', key)
+            tracker.set_property('enable_past_frame', tracker_enable_past_frame)
 
 
     print("Adding elements to Pipeline \n")
     pipeline.add(pgie)
-    # pipeline.add(tracker)
+    pipeline.add(tracker)
     pipeline.add(nvanalytics)
     if nvdslogger:
         pipeline.add(nvdslogger)
@@ -427,9 +430,9 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     print("Linking elements in the Pipeline \n")
     streammux.link(queue1)
     queue1.link(pgie)
-    pgie.link(queue3)
-    # queue2.link(tracker)
-    # tracker.link(queue3)
+    pgie.link(queue2)
+    queue2.link(tracker)
+    tracker.link(queue3)
     queue3.link(nvanalytics)
     nvanalytics.link(queue4)
     

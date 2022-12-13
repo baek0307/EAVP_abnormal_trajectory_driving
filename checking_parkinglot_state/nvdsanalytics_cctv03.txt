@@ -35,13 +35,15 @@ display-font-size=20
 #enable or disable following feature
 enable=1
 #ROI to filter select objects, and remove from meta data
+#roi-RF=850;270;1120;270;1890;1080;230;1080
+#roi-CCTV02=850;270;1120;270;1890;1080;230;1080
 
-roi-ch4-1 = 1920; 1080; 1784; 1080; 1096; 207; 1104; 158; 1417; 158; 1912; 347
 
-roi-ch4-2 = 7; 557; 71; 370; 363; 208; 470; 162; 832; 164; 841; 215; 479; 555
+roi-ch3 = 163; 1073; 691; 451; 1916; 425; 1920; 1080;
+
 
 #remove objects in the ROI
-inverse-roi=0
+inverse-roi=1
 class-id=-1
 
 
