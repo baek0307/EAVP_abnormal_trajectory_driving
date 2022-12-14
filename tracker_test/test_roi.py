@@ -81,12 +81,19 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
         frame_number=frame_meta.frame_num
         l_obj=frame_meta.obj_meta_list
         num_rects = frame_meta.num_obj_meta
+
         obj_counter = {
             PGIE_CLASS_ID_CAR:0,
             PGIE_CLASS_ID_PERSON:0,
         }
-        # while l_obj is not None:
-        print("#"*50)
+        
+        #Display Text
+        display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
+        display_meta.num_labels = 1
+        # py_nvosd_circle_params = display_meta.circle_params
+        
+        roi_obj_count = 0
+
         while l_obj :
             try: 
                 # Casting l_obj.data to pyds.NvDsObjectMeta
@@ -94,30 +101,60 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
             except StopIteration:
                 break
             obj_counter[obj_meta.class_id] += 1
-
+           
             if (obj_meta.class_id == 0):
                 obj_meta.rect_params.border_width = 0
-                # obj_meta.rect_params.has_bg_color = 0
                 obj_meta.text_params.text_bg_clr.alpha =0
                 obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
-           
+
+            #ROI 영역 내에 있는 obj_meta에 대해서만 처리함
             l_user_meta=obj_meta.obj_user_meta_list
+
             while l_user_meta:
                 try:
                     user_meta = pyds.NvDsUserMeta.cast(l_user_meta.data)
                     if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):   
                         user_meta_data = pyds.NvDsAnalyticsObjInfo.cast(user_meta.user_meta_data)
-                        # if user_meta_data.dirStatus: print("Object {0} moving in direction: {1}".format(obj_meta.object_id, user_meta_data.dirStatus))                    
-                        # if user_meta_data.lcStatus: print("Object {0} line crossing status: {1}".format(obj_meta.object_id, user_meta_data.lcStatus))
-                        # if user_meta_data.ocStatus: print("Object {0} overcrowding status: {1}".format(obj_meta.object_id, user_meta_data.ocStatus))
                         if (user_meta_data.roiStatus) and (obj_meta.class_id == 0) : 
                             obj_meta.text_params.text_bg_clr.alpha =1
                             obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
                             obj_meta.rect_params.border_width = 0
                             obj_meta.rect_params.has_bg_color = 1
-                            obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
-                            print("Object {0} roi status: {1}".format(obj_meta.object_id, user_meta_data.roiStatus))
+                            if obj_meta.object_id % 5 == 0 :
+                                obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
+                            elif obj_meta.object_id % 5 == 1 :
+                                obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
+                            elif obj_meta.object_id % 5 == 2 :
+                                obj_meta.rect_params.bg_color.set(0.0, 0.0, 1.0, 0.4)
+                            elif obj_meta.object_id % 5 == 3 :
+                                obj_meta.rect_params.bg_color.set(0.0, 1.0, 1.0, 0.6)
+                            else :
+                                obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.6)
 
+##########Draw trajectory of vehicle in ROI#####
+                            # bbox point info
+                            bbox_top = obj_meta.rect_params.top
+                            bbox_left = obj_meta.rect_params.left
+                            bbox_width = obj_meta.rect_params.width
+                            bbox_height = obj_meta.rect_params.height
+
+                            # bbox bottom center point location
+                            bbox_bottom_x = int(bbox_left + bbox_width / 2)
+                            bbox_bottom_y = int(bbox_top + bbox_height) 
+                            bbox_center = (bbox_bottom_x , bbox_bottom_y)
+                            
+
+                            display_meta.circle_params[roi_obj_count].xc = int(bbox_center[0])
+                            display_meta.circle_params[roi_obj_count].yc = int(bbox_center[1])
+                            display_meta.circle_params[roi_obj_count].radius = 20
+                            display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
+                            display_meta.circle_params[roi_obj_count].has_bg_color = True
+                            display_meta.circle_params[roi_obj_count].bg_color.set(1.0, 1.0, 1.0, 1.0)
+
+
+                            roi_obj_count += 1
+                            display_meta.num_circles = roi_obj_count
+########################                  
                 except StopIteration:
                     break
 
@@ -129,38 +166,19 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                 l_obj=l_obj.next
             except StopIteration:
                 break
-         
 
-        l_user = frame_meta.frame_user_meta_list
-        while l_user:
-            try:
-                user_meta = pyds.NvDsUserMeta.cast(l_user.data)
-                if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSFRAME.USER_META"):
-                    user_meta_data = pyds.NvDsAnalyticsFrameMeta.cast(user_meta.user_meta_data)
-                    if user_meta_data.objInROIcnt: 
-                        print("Objs in ROI: {0}".format(user_meta_data.objInROIcnt))                    
-                    # if user_meta_data.objLCCumCnt: print("Linecrossing Cumulative: {0}".format(user_meta_data.objLCCumCnt))
-                    # if user_meta_data.objLCCurrCnt: print("Linecrossing Current Frame: {0}".format(user_meta_data.objLCCurrCnt))
-                    # if user_meta_data.ocStatus: print("Overcrowding status: {0}".format(user_meta_data.ocStatus))
-            except StopIteration:
-                break
-            try:
-                l_user = l_user.next
-            except StopIteration:
-                break
-        
-        # if not silent:
-        #     print("Frame Number=", frame_number, "Number of Objects=",num_rects,"Vehicle_count=",obj_counter[PGIE_CLASS_ID_CAR],"Person_count=",obj_counter[PGIE_CLASS_ID_PERSON])
-        
-        # Update frame rate through this probe
         stream_index = "stream{0}".format(frame_meta.pad_index)
         global perf_data
         perf_data.update_fps(stream_index)
+
+        print("#####display_meta.num_circles : ", display_meta.num_circles)
+        pyds.nvds_add_display_meta_to_frame(frame_meta, display_meta)
 
         try:
             l_frame=l_frame.next
         except StopIteration:
             break
+
 
     return Gst.PadProbeReturn.OK
 
