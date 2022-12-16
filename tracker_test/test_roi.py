@@ -1,22 +1,3 @@
-#!/usr/bin/env python3
-
-################################################################################
-# SPDX-FileCopyrightText: Copyright (c) 2019-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-################################################################################
-
 import sys
 sys.path.append('../')
 from pathlib import Path
@@ -54,12 +35,15 @@ MUXER_OUTPUT_HEIGHT=1080
 MUXER_BATCH_TIMEOUT_USEC=4000000
 TILED_OUTPUT_WIDTH=1920
 TILED_OUTPUT_HEIGHT=1080
+CH2_CENTER_LINE=[[1070,1066],[997,408]]
+CH4_CENTER_LINE=[[877,1080],[965,200]]
 GST_CAPS_FEATURES_NVMM="memory:NVMM"
 OSD_PROCESS_MODE= 0
 OSD_DISPLAY_TEXT= 1
 TRACKING_PROCESS = 1
 past_tracking_meta=[0]
 pgie_classes_str= ["Car", "Person"]
+
 
 # def pgie_src_pad_buffer_probe(pad,info,u_data):
 def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
@@ -114,6 +98,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
         
         roi_obj_count = 0
         line_num = 0
+        text_num = 0
         while l_obj :
             try: 
                 # Casting l_obj.data to pyds.NvDsObjectMeta
@@ -179,7 +164,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                 obj_meta.rect_params.bg_color.set(0.0, 1.0, 1.0, 0.6)
                                 display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
                             else :
-                                obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.6)
+                                obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.3)
                                 display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
  
                             roi_obj_count += 1
@@ -198,7 +183,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
 
 ### draw trajectory circle
         for i in range(len(current_object_id_in_roi)) :
-            if frame_number % 20 == 0 and display_meta.circle_params[i].yc > 80 and display_meta.circle_params[i].yc < 1000 :
+            if frame_number % 25 == 0 and display_meta.circle_params[i].yc > 80 and display_meta.circle_params[i].yc < 1000 :
                 if not current_object_id_in_roi[i] in point_x :
                     point_x[current_object_id_in_roi[i]] = [display_meta.circle_params[i].xc]
                     point_x[current_object_id_in_roi[i]].append(display_meta.circle_params[i].xc)
@@ -272,24 +257,58 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                     display_meta.line_params[line_num].line_color.set(1.0, 0.0, 1.0, 0.9)
                 line_num += 1
                 
-                # ###first last point line
-                # display_meta.line_params[line_num].x1 = point_x[i][0]
-                # display_meta.line_params[line_num].x2 = x0[i]
-                # display_meta.line_params[line_num].y1 = point_y[i][0]
-                # display_meta.line_params[line_num].y2 = y0[i]
-                # display_meta.line_params[line_num].line_width = 3
-                # display_meta.line_params[line_num].line_color.set(1.0, 1.0, 1.0, 6.0)
-                # line_num += 1
+                ###first last point line
+                if i == 9 :
+                    angle_main = calc_angle_between_2line(point_x[i][0], point_y[i][0], x0[i], y0[i], CH4_CENTER_LINE[0][0], CH4_CENTER_LINE[0][1], CH4_CENTER_LINE[1][0], CH4_CENTER_LINE[1][1])
                 
-            
+                angle = calc_angle_between_2line(point_x[i][0], point_y[i][0], x0[i], y0[i], CH4_CENTER_LINE[0][0], CH4_CENTER_LINE[0][1], CH4_CENTER_LINE[1][0], CH4_CENTER_LINE[1][1])
+                if angle >= 40 :
+                    display_meta.line_params[line_num].x1 = point_x[i][0]
+                    display_meta.line_params[line_num].x2 = x0[i]
+                    display_meta.line_params[line_num].y1 = point_y[i][0]
+                    display_meta.line_params[line_num].y2 = y0[i]
+                    display_meta.line_params[line_num].line_width = 4
+                    display_meta.line_params[line_num].line_color.set(1.0, 1.0, 1.0, 1.0)
+                    line_num += 1
 
-        # print(frame_number)
-        # for i in range(0, roi_obj_count):
-        #     print("circle", i ,"  x,y : ", display_meta.circle_params[i].xc, display_meta.circle_params[i].yc)
+                
+
+        output_text = ""    
+        output_text = output_text + "Vehicle : " + str(len(current_object_id_in_roi))
+
+        # if not 16 in current_object_id_in_roi :
+        display_meta.text_params[text_num].display_text = output_text
+        display_meta.text_params[text_num].x_offset = 0
+        display_meta.text_params[text_num].y_offset = 0
+        display_meta.text_params[text_num].font_params.font_name = "Serif"
+        display_meta.text_params[text_num].font_params.font_size = 28
+        display_meta.text_params[text_num].font_params.font_color.set(0.0, 1.0, 0.0, 0.9)
+        display_meta.text_params[text_num].set_bg_clr = 1
+        display_meta.text_params[text_num].text_bg_clr.set(0.0, 0.0, 0.0, 0.7)
+        
+        # print("frame : ", frame_number, " [] ", current_object_id_in_roi)
+        if 9 in current_object_id_in_roi  :
+            print(frame_number , "  ", angle_main)
+            if roi_obj_count >= 4 and angle_main > 20 and frame_number > 100:
+                output_text =  output_text + "\nvehicle 9 : Abnormal Driving!!!\n Rotate Handle Right : " + str(angle_main) 
+                display_meta.text_params[text_num].display_text = output_text
+                display_meta.text_params[text_num].x_offset = 0
+                display_meta.text_params[text_num].y_offset = 0
+                display_meta.text_params[text_num].font_params.font_name = "Serif"
+                display_meta.text_params[text_num].font_params.font_size = 35
+                display_meta.text_params[text_num].font_params.font_color.set(1.0, 0.0, 0.0, 1.0)
+                display_meta.text_params[text_num].set_bg_clr = 1
+                display_meta.text_params[text_num].text_bg_clr.set(0.0, 0.0, 0.0, 0.9)
+            # text_num += 1
+
+        text_num += 1
+
+
+
 
         display_meta.num_circles = roi_obj_count
         display_meta.num_lines = line_num
-        print("frame : ", frame_number, " total point num : ", display_meta.num_circles , " total line num : ", display_meta.num_lines , "\n")
+        # print("frame : ", frame_number, " total point num : ", display_meta.num_circles , " total line num : ", display_meta.num_lines , "\n")
  
         stream_index = "stream{0}".format(frame_meta.pad_index)
         global perf_data
@@ -309,7 +328,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
 def dot(vevtor1, vector2):
     return vevtor1[0]*vector2[0]+vevtor1[1]*vector2[1]
 
-def ang(x1, y1, x2, y2, x3, y3, x4, y4):
+def calc_angle_between_2line(x1, y1, x2, y2, x3, y3, x4, y4):
     # Get nicer vector form
     vector1 = [(x1-x2), (y1-y2)]
     vector2 = [(x3-x4), (y3-y4)]
@@ -325,12 +344,16 @@ def ang(x1, y1, x2, y2, x3, y3, x4, y4):
     # Basically doing angle <- angle mod 360
     ang_deg = math.degrees(angle)%360
     
-    if ang_deg-180>=0:
+    if ang_deg-180 >= 0 :
+        result = 360 - ang_deg
         # As in if statement
-        return 360 - ang_deg
     else: 
-        
-        return ang_deg
+        result = ang_deg
+    
+    if result >= 90 :
+        result = 180 - result
+
+    return round(result,2)
 
 
 class trajectory_point :
