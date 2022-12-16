@@ -76,18 +76,6 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
     past_circle_params = u_data.previous_point_dict
     object_id_in_roi = u_data.object_in_roi
     current_object_id_in_roi = u_data.current_object_in_roi
-
-    x1 = u_data.trajectory_x1
-    x2 = u_data.trajectory_x2
-    x3 = u_data.trajectory_x3
-    x4 = u_data.trajectory_x4
-    x5 = u_data.trajectory_x5
-
-    y1 = u_data.trajectory_y1
-    y2 = u_data.trajectory_y2
-    y3 = u_data.trajectory_y3
-    y4 = u_data.trajectory_y4
-    y5 = u_data.trajectory_y5
     
 
     while l_frame is not None:
@@ -196,97 +184,53 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
             except StopIteration:
                 break
 
-### draw trajectory circle
-        for i in range(len(current_object_id_in_roi)) :
-            if display_meta.circle_params[i].yc > 80 and display_meta.circle_params[i].yc < 1000 :
-
-                if frame_number % 80 == 20 :
-                    x1[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
-                    y1[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
-                elif frame_number % 80 == 40 :
-                    x2[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
-                    y2[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
-                elif frame_number % 80 == 60 :
-                    x3[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
-                    y3[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
-                elif frame_number % 80 == 0 :
-                    x4[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
-                    y4[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
-
-        # if frame_number % 50 == 0 :
-        #     u_data.print_trajectory_point_info()
-        #     for i in current_object_id_in_roi :
-        #         if i in x1 :
-        #             print("x1(",i,")  ", x1[i])
+        if frame_number % 15 == 0 :
+            # print("frame_number: ", frame_number)
+            # 현재 ROI 안에 있는 obj에 대해서만
         
-        for i in current_object_id_in_roi :
-            if i in x1 :
-                display_meta.circle_params[roi_obj_count].xc = x1[i]
-                display_meta.circle_params[roi_obj_count].yc = y1[i]
-                display_meta.circle_params[roi_obj_count].radius = 5
-                if i % 5 == 0 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                elif i % 5 == 1 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                elif i % 5 == 2 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                elif i % 5 == 3 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                else :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
-                roi_obj_count += 1
+            for i in range(len(current_object_id_in_roi)) :
+                if display_meta.circle_params[i].xc != 0 :
+                    # past_circle_params 에 있을때
+                    if not current_object_id_in_roi[i] in past_circle_params :
+                        past_circle_params[current_object_id_in_roi[i]] = [display_meta.circle_params[i]]
+                        past_circle_params[current_object_id_in_roi[i]].append([display_meta.circle_params[i]])
+                        past_circle_params[current_object_id_in_roi[i]].append([display_meta.circle_params[i]])
+                        past_circle_params[current_object_id_in_roi[i]].append([display_meta.circle_params[i]])
+                        # print("same??? x,y : ",display_meta.circle_params[i].xc, display_meta.circle_params[i].yc)
+                    
+                    elif len(past_circle_params[current_object_id_in_roi[i]]) < 2 :
 
-            if i in x2 :
-                display_meta.circle_params[roi_obj_count].xc = x2[i]
-                display_meta.circle_params[roi_obj_count].yc = y2[i]
-                display_meta.circle_params[roi_obj_count].radius = 5
-                if i % 5 == 0 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                elif i % 5 == 1 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                elif i % 5 == 2 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                elif i % 5 == 3 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                else :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
-                roi_obj_count += 1
+                        del past_circle_params[current_object_id_in_roi[i]]
+                        
+                    else :
+                        # past_circle_params[current_object_id_in_roi[i]].pop(0)
+                        # print("len of past_circle_params : ", len(past_circle_params[current_object_id_in_roi[i]]))
+                        past_circle_params[current_object_id_in_roi[i]].pop(0)
+                        # print("pop pop pop")
+                        # print("len of past_circle_params : ", len(past_circle_params[current_object_id_in_roi[i]]))
+                        past_circle_params[current_object_id_in_roi[i]].append([display_meta.circle_params[i]])
+                        # print("same??? x,y : ",display_meta.circle_params[i].xc, display_meta.circle_params[i].yc)
 
-            if i in x3 :
-                display_meta.circle_params[roi_obj_count].xc = x3[i]
-                display_meta.circle_params[roi_obj_count].yc = y3[i]
-                display_meta.circle_params[roi_obj_count].radius = 5
-                if i % 5 == 0 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                elif i % 5 == 1 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                elif i % 5 == 2 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                elif i % 5 == 3 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                else :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
-                roi_obj_count += 1
+                for j in past_circle_params :
+                    if not j in  current_object_id_in_roi :
+                        # print("no data1!!!!!!!")
+                        del past_circle_params[j]
 
-            if i in x4 :
-                display_meta.circle_params[roi_obj_count].xc = x4[i]
-                display_meta.circle_params[roi_obj_count].yc = y4[i]
-                display_meta.circle_params[roi_obj_count].radius = 5
-                if i % 5 == 0 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                elif i % 5 == 1 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                elif i % 5 == 2 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                elif i % 5 == 3 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                else :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
-                roi_obj_count += 1
+        if len(current_object_id_in_roi) :
+            for i in past_circle_params :   
+                # print("ID",i,"  len : ", len(past_circle_params[i]))
+                for j in range(len(past_circle_params[i])) :
+                    # print("past_circle_params[", i, "][", j, "] ",past_circle_params[i][j][0])
+                    print("past_circle_params[", i, "][", j, "] x : ",past_circle_params[i][j][0].xc)
+                    # display_meta.circle_params[roi_obj_count] = past_circle_params[i][j][0]
+                    # display_meta.circle_params[roi_obj_count].xc = past_circle_params[i][j].xc
+                    # display_meta.circle_params[roi_obj_count].yc = past_circle_params[i][j].yc
+                    # display_meta.circle_params[roi_obj_count].radius = 5
+                    # display_meta.circle_params[roi_obj_count].circle_color = past_circle_params[i][j].circle_color
+                    # roi_obj_count += 1
 
-        print(frame_number)
-        for i in range(0, roi_obj_count):
-            print("circle", i ,"  x,y : ", display_meta.circle_params[i].xc, display_meta.circle_params[i].yc)
+        
+
 
         display_meta.num_circles = roi_obj_count
         # print("frame : ", frame_number, " total point num : ", display_meta.num_circles , "\n")
@@ -311,32 +255,8 @@ class trajectory_point :
 
     object_in_roi = []
     current_object_in_roi = []
+
     previous_point_dict = {}
-
-    trajectory_x1 = {}
-    trajectory_x2 = {}
-    trajectory_x3 = {}
-    trajectory_x4 = {}
-    trajectory_x5 = {}
-    trajectory_y1 = {}
-    trajectory_y2 = {}
-    trajectory_y3 = {}
-    trajectory_y4 = {}
-    trajectory_y5 = {}
-
-    def print_trajectory_point_info(self):
-        print("trajectory_x1 : ", self.trajectory_x1)
-        print("trajectory_x2 : ", self.trajectory_x2)
-        print("trajectory_x3 : ", self.trajectory_x3)
-        print("trajectory_x4 : ", self.trajectory_x4)
-        print("trajectory_x5 : ", self.trajectory_x5)
-        print("trajectory_y1 : ", self.trajectory_y1)
-        print("trajectory_y2 : ", self.trajectory_y2)
-        print("trajectory_y3 : ", self.trajectory_y3)
-        print("trajectory_y4 : ", self.trajectory_y4)
-        print("trajectory_y5 : ", self.trajectory_y5)
-    
-    # def point_setting(self, obj_num, ) :
 
     def clear_previous_point(self):
         previous_point_dict = {}
@@ -358,9 +278,6 @@ class trajectory_point :
     
     def clear_current_object_in_roi(self):
         trajectory_point.current_object_in_roi = []
-
-
-
 
 
 

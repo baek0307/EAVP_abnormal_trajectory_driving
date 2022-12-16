@@ -35,7 +35,6 @@ from common.bus_call import bus_call
 from common.FPS import PERF_DATA
 
 import pyds
-import time
 
 no_display = False
 silent = False
@@ -73,33 +72,11 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
     batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))
     l_frame = batch_meta.frame_meta_list
 
-    past_circle_params = u_data.previous_point_dict
-    object_id_in_roi = u_data.object_in_roi
-    current_object_id_in_roi = u_data.current_object_in_roi
-
-    x1 = u_data.trajectory_x1
-    x2 = u_data.trajectory_x2
-    x3 = u_data.trajectory_x3
-    x4 = u_data.trajectory_x4
-    x5 = u_data.trajectory_x5
-
-    y1 = u_data.trajectory_y1
-    y2 = u_data.trajectory_y2
-    y3 = u_data.trajectory_y3
-    y4 = u_data.trajectory_y4
-    y5 = u_data.trajectory_y5
-    
-
     while l_frame is not None:
         try:
             frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
         except StopIteration:
             break
-        
-        ### print all u_data
-        # u_data.print_object_in_roi_info()
-        # u_data.print_previous_point_dict_info()   
-        u_data.clear_current_object_in_roi()
 
         frame_number=frame_meta.frame_num
         l_obj=frame_meta.obj_meta_list
@@ -115,8 +92,8 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
         display_meta.num_labels = 1
         # py_nvosd_circle_params = display_meta.circle_params
         
-        
         roi_obj_count = 0
+
         while l_obj :
             try: 
                 # Casting l_obj.data to pyds.NvDsObjectMeta
@@ -139,17 +116,22 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                     if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):   
                         user_meta_data = pyds.NvDsAnalyticsObjInfo.cast(user_meta.user_meta_data)
                         if (user_meta_data.roiStatus) and (obj_meta.class_id == 0) : 
-                            
-                            if not obj_meta.object_id in object_id_in_roi :
-                                object_id_in_roi.append(obj_meta.object_id)
-                            current_object_id_in_roi.append(obj_meta.object_id)
-
                             obj_meta.text_params.text_bg_clr.alpha =1
                             obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
                             obj_meta.rect_params.border_width = 0
                             obj_meta.rect_params.has_bg_color = 1
-                            # obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
+                            if obj_meta.object_id % 5 == 0 :
+                                obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
+                            elif obj_meta.object_id % 5 == 1 :
+                                obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
+                            elif obj_meta.object_id % 5 == 2 :
+                                obj_meta.rect_params.bg_color.set(0.0, 0.0, 1.0, 0.4)
+                            elif obj_meta.object_id % 5 == 3 :
+                                obj_meta.rect_params.bg_color.set(0.0, 1.0, 1.0, 0.6)
+                            else :
+                                obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.6)
 
+##########Draw trajectory of vehicle in ROI#####
                             # bbox point info
                             bbox_top = obj_meta.rect_params.top
                             bbox_left = obj_meta.rect_params.left
@@ -161,29 +143,18 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                             bbox_bottom_y = int(bbox_top + bbox_height) 
                             bbox_center = (bbox_bottom_x , bbox_bottom_y)
                             
+
                             display_meta.circle_params[roi_obj_count].xc = int(bbox_center[0])
                             display_meta.circle_params[roi_obj_count].yc = int(bbox_center[1])
-                            display_meta.circle_params[roi_obj_count].radius = 5
-                            display_meta.circle_params[roi_obj_count].has_bg_color = 1
+                            display_meta.circle_params[roi_obj_count].radius = 20
+                            display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
+                            display_meta.circle_params[roi_obj_count].has_bg_color = True
+                            display_meta.circle_params[roi_obj_count].bg_color.set(1.0, 1.0, 1.0, 1.0)
 
-                            if obj_meta.object_id % 5 == 0 :
-                                obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
-                                display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                            elif obj_meta.object_id % 5 == 1 :
-                                obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
-                                display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                            elif obj_meta.object_id % 5 == 2 :
-                                obj_meta.rect_params.bg_color.set(0.0, 0.0, 1.0, 0.4)
-                                display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                            elif obj_meta.object_id % 5 == 3 :
-                                obj_meta.rect_params.bg_color.set(0.0, 1.0, 1.0, 0.6)
-                                display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                            else :
-                                obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.6)
-                                display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
- 
+
                             roi_obj_count += 1
-       
+                            display_meta.num_circles = roi_obj_count
+########################                  
                 except StopIteration:
                     break
 
@@ -196,172 +167,20 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
             except StopIteration:
                 break
 
-### draw trajectory circle
-        for i in range(len(current_object_id_in_roi)) :
-            if display_meta.circle_params[i].yc > 80 and display_meta.circle_params[i].yc < 1000 :
-
-                if frame_number % 80 == 20 :
-                    x1[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
-                    y1[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
-                elif frame_number % 80 == 40 :
-                    x2[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
-                    y2[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
-                elif frame_number % 80 == 60 :
-                    x3[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
-                    y3[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
-                elif frame_number % 80 == 0 :
-                    x4[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
-                    y4[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
-
-        # if frame_number % 50 == 0 :
-        #     u_data.print_trajectory_point_info()
-        #     for i in current_object_id_in_roi :
-        #         if i in x1 :
-        #             print("x1(",i,")  ", x1[i])
-        
-        for i in current_object_id_in_roi :
-            if i in x1 :
-                display_meta.circle_params[roi_obj_count].xc = x1[i]
-                display_meta.circle_params[roi_obj_count].yc = y1[i]
-                display_meta.circle_params[roi_obj_count].radius = 5
-                if i % 5 == 0 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                elif i % 5 == 1 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                elif i % 5 == 2 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                elif i % 5 == 3 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                else :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
-                roi_obj_count += 1
-
-            if i in x2 :
-                display_meta.circle_params[roi_obj_count].xc = x2[i]
-                display_meta.circle_params[roi_obj_count].yc = y2[i]
-                display_meta.circle_params[roi_obj_count].radius = 5
-                if i % 5 == 0 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                elif i % 5 == 1 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                elif i % 5 == 2 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                elif i % 5 == 3 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                else :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
-                roi_obj_count += 1
-
-            if i in x3 :
-                display_meta.circle_params[roi_obj_count].xc = x3[i]
-                display_meta.circle_params[roi_obj_count].yc = y3[i]
-                display_meta.circle_params[roi_obj_count].radius = 5
-                if i % 5 == 0 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                elif i % 5 == 1 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                elif i % 5 == 2 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                elif i % 5 == 3 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                else :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
-                roi_obj_count += 1
-
-            if i in x4 :
-                display_meta.circle_params[roi_obj_count].xc = x4[i]
-                display_meta.circle_params[roi_obj_count].yc = y4[i]
-                display_meta.circle_params[roi_obj_count].radius = 5
-                if i % 5 == 0 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                elif i % 5 == 1 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                elif i % 5 == 2 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                elif i % 5 == 3 :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                else :
-                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
-                roi_obj_count += 1
-
-        print(frame_number)
-        for i in range(0, roi_obj_count):
-            print("circle", i ,"  x,y : ", display_meta.circle_params[i].xc, display_meta.circle_params[i].yc)
-
-        display_meta.num_circles = roi_obj_count
-        # print("frame : ", frame_number, " total point num : ", display_meta.num_circles , "\n")
- 
         stream_index = "stream{0}".format(frame_meta.pad_index)
         global perf_data
         perf_data.update_fps(stream_index)
 
+        print("#####display_meta.num_circles : ", display_meta.num_circles)
         pyds.nvds_add_display_meta_to_frame(frame_meta, display_meta)
 
         try:
             l_frame=l_frame.next
         except StopIteration:
             break
-    
-        
+
 
     return Gst.PadProbeReturn.OK
-
-
-class trajectory_point :
-
-    object_in_roi = []
-    current_object_in_roi = []
-    previous_point_dict = {}
-
-    trajectory_x1 = {}
-    trajectory_x2 = {}
-    trajectory_x3 = {}
-    trajectory_x4 = {}
-    trajectory_x5 = {}
-    trajectory_y1 = {}
-    trajectory_y2 = {}
-    trajectory_y3 = {}
-    trajectory_y4 = {}
-    trajectory_y5 = {}
-
-    def print_trajectory_point_info(self):
-        print("trajectory_x1 : ", self.trajectory_x1)
-        print("trajectory_x2 : ", self.trajectory_x2)
-        print("trajectory_x3 : ", self.trajectory_x3)
-        print("trajectory_x4 : ", self.trajectory_x4)
-        print("trajectory_x5 : ", self.trajectory_x5)
-        print("trajectory_y1 : ", self.trajectory_y1)
-        print("trajectory_y2 : ", self.trajectory_y2)
-        print("trajectory_y3 : ", self.trajectory_y3)
-        print("trajectory_y4 : ", self.trajectory_y4)
-        print("trajectory_y5 : ", self.trajectory_y5)
-    
-    # def point_setting(self, obj_num, ) :
-
-    def clear_previous_point(self):
-        previous_point_dict = {}
-
-    def print_object_in_roi_info(self):
-        print("len(object_in_roi : ", len(self.object_in_roi))
-        print("object_in_roi : ", self.object_in_roi)
-    
-    def print_current_object_in_roi(self):
-        print("len(current_object_in_roi : ", len(trajectory_point.current_object_in_roi))
-        print("current_object_in_roi : ", trajectory_point.current_object_in_roi)
-
-    def print_previous_point_dict_info(self):
-        print("len(previous_point_dict : ", len(self.previous_point_dict))
-        print("previous_point_dict : ", self.previous_point_dict)
-
-    def __init__(self):
-        self.previous_point_dict = {}
-    
-    def clear_current_object_in_roi(self):
-        trajectory_point.current_object_in_roi = []
-
-
-
-
 
 
 
@@ -438,8 +257,6 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     perf_data = PERF_DATA(len(args))
 
     number_sources=len(args)
-
-    userdata = trajectory_point()
 
     # Standard GStreamer initialization
     Gst.init(None)
@@ -665,7 +482,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
         sys.stderr.write(" Unable to get src pad \n")
     else:
         # if not disable_probe:
-        nvanalytics_src_pad.add_probe(Gst.PadProbeType.BUFFER, nvanalytics_src_pad_buffer_probe, userdata)
+        nvanalytics_src_pad.add_probe(Gst.PadProbeType.BUFFER, nvanalytics_src_pad_buffer_probe, 0)
         # perf callback function to print fps every 5 sec
         GLib.timeout_add(5000, perf_data.perf_print_callback)
 
