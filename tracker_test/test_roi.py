@@ -36,6 +36,7 @@ from common.FPS import PERF_DATA
 
 import pyds
 import time
+import math
 
 no_display = False
 silent = False
@@ -271,14 +272,14 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                     display_meta.line_params[line_num].line_color.set(1.0, 0.0, 1.0, 0.9)
                 line_num += 1
                 
-                ###first last point line
-                display_meta.line_params[line_num].x1 = point_x[i][0]
-                display_meta.line_params[line_num].x2 = x0[i]
-                display_meta.line_params[line_num].y1 = point_y[i][0]
-                display_meta.line_params[line_num].y2 = y0[i]
-                display_meta.line_params[line_num].line_width = 3
-                display_meta.line_params[line_num].line_color.set(1.0, 1.0, 1.0, 6.0)
-                line_num += 1
+                # ###first last point line
+                # display_meta.line_params[line_num].x1 = point_x[i][0]
+                # display_meta.line_params[line_num].x2 = x0[i]
+                # display_meta.line_params[line_num].y1 = point_y[i][0]
+                # display_meta.line_params[line_num].y2 = y0[i]
+                # display_meta.line_params[line_num].line_width = 3
+                # display_meta.line_params[line_num].line_color.set(1.0, 1.0, 1.0, 6.0)
+                # line_num += 1
                 
             
 
@@ -304,6 +305,32 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
         
 
     return Gst.PadProbeReturn.OK
+
+def dot(vevtor1, vector2):
+    return vevtor1[0]*vector2[0]+vevtor1[1]*vector2[1]
+
+def ang(x1, y1, x2, y2, x3, y3, x4, y4):
+    # Get nicer vector form
+    vector1 = [(x1-x2), (y1-y2)]
+    vector2 = [(x3-x4), (y3-y4)]
+    
+    dot_prod = dot(vector1, vector2)
+    # Get magnitudes
+    magA = dot(vector1, vector1)**0.5
+    magB = dot(vector2, vector2)**0.5
+    # Get cosine value
+    cos_ = dot_prod/magA/magB
+    # Get angle in radians and then convert to degrees
+    angle = math.acos(dot_prod/magB/magA)
+    # Basically doing angle <- angle mod 360
+    ang_deg = math.degrees(angle)%360
+    
+    if ang_deg-180>=0:
+        # As in if statement
+        return 360 - ang_deg
+    else: 
+        
+        return ang_deg
 
 
 class trajectory_point :
