@@ -77,12 +77,22 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
     object_id_in_roi = u_data.object_in_roi
     current_object_id_in_roi = u_data.current_object_in_roi
 
-    point_x = u_data.trajectory_x
-    point_y = u_data.trajectory_y
+    x1 = u_data.trajectory_x1
+    x2 = u_data.trajectory_x2
+    x3 = u_data.trajectory_x3
+    x4 = u_data.trajectory_x4
+    x0 = u_data.trajectory_x5
 
-    x0 = u_data.trajectory_x0
-    y0 = u_data.trajectory_y0
-    
+    y1 = u_data.trajectory_y1
+    y2 = u_data.trajectory_y2
+    y3 = u_data.trajectory_y3
+    y4 = u_data.trajectory_y4
+    y0 = u_data.trajectory_y5
+
+    order1 = u_data.trajectory_order1
+    order2 = u_data.trajectory_order2
+    order3 = u_data.trajectory_order3
+    order4 = u_data.trajectory_order4
     
 
     while l_frame is not None:
@@ -197,98 +207,175 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
 
 ### draw trajectory circle
         for i in range(len(current_object_id_in_roi)) :
-            if frame_number % 20 == 0 and display_meta.circle_params[i].yc > 80 and display_meta.circle_params[i].yc < 1000 :
-                if not current_object_id_in_roi[i] in point_x :
-                    point_x[current_object_id_in_roi[i]] = [display_meta.circle_params[i].xc]
-                    point_x[current_object_id_in_roi[i]].append(display_meta.circle_params[i].xc)
-                    point_x[current_object_id_in_roi[i]].append(display_meta.circle_params[i].xc)
-                    point_x[current_object_id_in_roi[i]].append(display_meta.circle_params[i].xc)
-                    point_y[current_object_id_in_roi[i]] = [display_meta.circle_params[i].yc]
-                    point_y[current_object_id_in_roi[i]].append(display_meta.circle_params[i].yc)
-                    point_y[current_object_id_in_roi[i]].append(display_meta.circle_params[i].yc)
-                    point_y[current_object_id_in_roi[i]].append(display_meta.circle_params[i].yc)
-                else :
-                    point_x[current_object_id_in_roi[i]].pop(0)
-                    point_x[current_object_id_in_roi[i]].append(display_meta.circle_params[i].xc)
-                    point_y[current_object_id_in_roi[i]].pop(0)
-                    point_y[current_object_id_in_roi[i]].append(display_meta.circle_params[i].yc)              
+            if display_meta.circle_params[i].yc > 80 and display_meta.circle_params[i].yc < 1000 :
+
+                if frame_number % 80 == 20 :
+                    x1[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
+                    y1[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
+                    order1[current_object_id_in_roi[i]] = frame_number
+                elif frame_number % 80 == 40 :
+                    x2[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
+                    y2[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
+                    order2[current_object_id_in_roi[i]] = frame_number
+                elif frame_number % 80 == 60 :
+                    x3[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
+                    y3[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
+                    order3[current_object_id_in_roi[i]] = frame_number
+                elif frame_number % 80 == 0 :
+                    x4[current_object_id_in_roi[i]] = display_meta.circle_params[i].xc
+                    y4[current_object_id_in_roi[i]] = display_meta.circle_params[i].yc
+                    order4[current_object_id_in_roi[i]] = frame_number
+
+        # if frame_number % 50 == 0 :
+        #     u_data.print_trajectory_point_info()
+        #     for i in current_object_id_in_roi :
+        #         if i in x1 :
+        #             print("x1(",i,")  ", x1[i])
         
         ### draw trajectory circle
         for i in current_object_id_in_roi :
-            if i in point_x :
-                for j in range(len(point_x[i])) :
-                    display_meta.circle_params[roi_obj_count].xc = point_x[i][j]
-                    display_meta.circle_params[roi_obj_count].yc = point_y[i][j]
-                    display_meta.circle_params[roi_obj_count].radius = 4
-                    if i % 5 == 0 :
-                        display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                    elif i % 5 == 1 :
-                        display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                    elif i % 5 == 2 :
-                        display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                    elif i % 5 == 3 :
-                        display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                    else :
-                        display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
-                    roi_obj_count += 1
+            if i in x1 :
+                display_meta.circle_params[roi_obj_count].xc = x1[i]
+                display_meta.circle_params[roi_obj_count].yc = y1[i]
+                display_meta.circle_params[roi_obj_count].radius = 5
+                if i % 5 == 0 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
+                elif i % 5 == 1 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
+                elif i % 5 == 2 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
+                elif i % 5 == 3 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
+                else :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
+                roi_obj_count += 1
 
+            if i in x2 :
+                display_meta.circle_params[roi_obj_count].xc = x2[i]
+                display_meta.circle_params[roi_obj_count].yc = y2[i]
+                display_meta.circle_params[roi_obj_count].radius = 5
+                if i % 5 == 0 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
+                elif i % 5 == 1 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
+                elif i % 5 == 2 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
+                elif i % 5 == 3 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
+                else :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
+                roi_obj_count += 1
+
+            if i in x3 :
+                display_meta.circle_params[roi_obj_count].xc = x3[i]
+                display_meta.circle_params[roi_obj_count].yc = y3[i]
+                display_meta.circle_params[roi_obj_count].radius = 5
+                if i % 5 == 0 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
+                elif i % 5 == 1 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
+                elif i % 5 == 2 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
+                elif i % 5 == 3 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
+                else :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
+                roi_obj_count += 1
+
+            if i in x4 :
+                display_meta.circle_params[roi_obj_count].xc = x4[i]
+                display_meta.circle_params[roi_obj_count].yc = y4[i]
+                display_meta.circle_params[roi_obj_count].radius = 5
+                if i % 5 == 0 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
+                elif i % 5 == 1 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
+                elif i % 5 == 2 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
+                elif i % 5 == 3 :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
+                else :
+                    display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
+                roi_obj_count += 1
 
         ### draw trajectory line
         for i in current_object_id_in_roi :
-            if i in point_x :
-                for j in range(len(point_x[i])-1) :
-                    display_meta.line_params[line_num].x1 = point_x[i][j]
-                    display_meta.line_params[line_num].x2 = point_x[i][j+1]
-                    display_meta.line_params[line_num].y1 = point_y[i][j]
-                    display_meta.line_params[line_num].y2 = point_y[i][j+1]
-                    display_meta.line_params[line_num].line_width = 4
-                    if i % 5 == 0 :
-                        display_meta.line_params[line_num].line_color.set(0.0, 1.0, 0.0, 0.9)
-                    elif i % 5 == 1 :
-                        display_meta.line_params[line_num].line_color.set(1.0, 0.0, 0.0, 0.9)
-                    elif i % 5 == 2 :
-                        display_meta.line_params[line_num].line_color.set(0.0, 0.0, 1.0, 0.9)
-                    elif i % 5 == 3 :
-                        display_meta.line_params[line_num].line_color.set(0.0, 1.0, 1.0, 0.9)
-                    else :
-                        display_meta.line_params[line_num].line_color.set(1.0, 0.0, 1.0, 0.9)
-                    line_num += 1
-                
-                display_meta.line_params[line_num].x1 = point_x[i][-1]
-                display_meta.line_params[line_num].x2 = x0[i]
-                display_meta.line_params[line_num].y1 = point_y[i][-1]
-                display_meta.line_params[line_num].y2 = y0[i]
+            if i in x1 and i in x2:
+                display_meta.line_params[line_num].x1 = x1[i]
+                display_meta.line_params[line_num].x2 = x2[i]
+                display_meta.line_params[line_num].y1 = y1[i]
+                display_meta.line_params[line_num].y2 = y2[i]
                 display_meta.line_params[line_num].line_width = 4
                 if i % 5 == 0 :
-                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 0.0, 0.9)
+                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 0.0, 0.8)
                 elif i % 5 == 1 :
-                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 0.0, 0.9)
+                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 0.0, 0.8)
                 elif i % 5 == 2 :
-                    display_meta.line_params[line_num].line_color.set(0.0, 0.0, 1.0, 0.9)
+                    display_meta.line_params[line_num].line_color.set(0.0, 0.0, 1.0, 0.8)
                 elif i % 5 == 3 :
-                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 1.0, 0.9)
+                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 1.0, 0.8)
                 else :
-                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 1.0, 0.9)
+                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 1.0, 0.8)
                 line_num += 1
-                
-                ###first last point line
-                display_meta.line_params[line_num].x1 = point_x[i][0]
-                display_meta.line_params[line_num].x2 = x0[i]
-                display_meta.line_params[line_num].y1 = point_y[i][0]
-                display_meta.line_params[line_num].y2 = y0[i]
-                display_meta.line_params[line_num].line_width = 3
-                display_meta.line_params[line_num].line_color.set(1.0, 1.0, 1.0, 6.0)
+            if i in x2 and i in x3:
+                display_meta.line_params[line_num].x1 = x2[i]
+                display_meta.line_params[line_num].x2 = x3[i]
+                display_meta.line_params[line_num].y1 = y2[i]
+                display_meta.line_params[line_num].y2 = y3[i]
+                display_meta.line_params[line_num].line_width = 4
+                if i % 5 == 0 :
+                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 0.0, 0.8)
+                elif i % 5 == 1 :
+                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 0.0, 0.8)
+                elif i % 5 == 2 :
+                    display_meta.line_params[line_num].line_color.set(0.0, 0.0, 1.0, 0.8)
+                elif i % 5 == 3 :
+                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 1.0, 0.8)
+                else :
+                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 1.0, 0.8)
                 line_num += 1
-                
-            
+            if i in x3 and i in x4:
+                display_meta.line_params[line_num].x1 = x3[i]
+                display_meta.line_params[line_num].x2 = x4[i]
+                display_meta.line_params[line_num].y1 = y3[i]
+                display_meta.line_params[line_num].y2 = y4[i]
+                display_meta.line_params[line_num].line_width = 4
+                if i % 5 == 0 :
+                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 0.0, 0.8)
+                elif i % 5 == 1 :
+                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 0.0, 0.8)
+                elif i % 5 == 2 :
+                    display_meta.line_params[line_num].line_color.set(0.0, 0.0, 1.0, 0.8)
+                elif i % 5 == 3 :
+                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 1.0, 0.8)
+                else :
+                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 1.0, 0.8)
+                line_num += 1
+            if i in x4 and i in x1:
+                display_meta.line_params[line_num].x1 = x4[i]
+                display_meta.line_params[line_num].x2 = x1[i]
+                display_meta.line_params[line_num].y1 = y4[i]
+                display_meta.line_params[line_num].y2 = y1[i]
+                display_meta.line_params[line_num].line_width = 4
+                if i % 5 == 0 :
+                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 0.0, 0.8)
+                elif i % 5 == 1 :
+                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 0.0, 0.8)
+                elif i % 5 == 2 :
+                    display_meta.line_params[line_num].line_color.set(0.0, 0.0, 1.0, 0.8)
+                elif i % 5 == 3 :
+                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 1.0, 0.8)
+                else :
+                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 1.0, 0.8)
+                line_num += 1
 
-        # print(frame_number)
-        # for i in range(0, roi_obj_count):
-        #     print("circle", i ,"  x,y : ", display_meta.circle_params[i].xc, display_meta.circle_params[i].yc)
+        print(frame_number)
+        for i in range(0, roi_obj_count):
+            print("circle", i ,"  x,y : ", display_meta.circle_params[i].xc, display_meta.circle_params[i].yc)
 
         display_meta.num_circles = roi_obj_count
         display_meta.num_lines = line_num
-        print("frame : ", frame_number, " total point num : ", display_meta.num_circles , " total line num : ", display_meta.num_lines , "\n")
+        # print("frame : ", frame_number, " total point num : ", display_meta.num_circles , "\n")
  
         stream_index = "stream{0}".format(frame_meta.pad_index)
         global perf_data
@@ -312,18 +399,32 @@ class trajectory_point :
     current_object_in_roi = []
     previous_point_dict = {}
 
-    trajectory_x = {}
-    trajectory_y = {}
-    trajectory_x0 = {}
-    trajectory_y0 = {}
-    
+    trajectory_x1 = {}
+    trajectory_x2 = {}
+    trajectory_x3 = {}
+    trajectory_x4 = {}
+    trajectory_x5 = {}
+    trajectory_y1 = {}
+    trajectory_y2 = {}
+    trajectory_y3 = {}
+    trajectory_y4 = {}
+    trajectory_y5 = {}
+    trajectory_order1 = {}
+    trajectory_order2 = {}
+    trajectory_order3 = {}
+    trajectory_order4 = {}
 
     def print_trajectory_point_info(self):
-        print("trajectory_x : ", self.trajectory_x)
-        print("trajectory_y : ", self.trajectory_y)
-        print("trajectory_x0 : ", self.trajectory_x0)
-        print("trajectory_y0 : ", self.trajectory_y0)
-        
+        print("trajectory_x1 : ", self.trajectory_x1)
+        print("trajectory_x2 : ", self.trajectory_x2)
+        print("trajectory_x3 : ", self.trajectory_x3)
+        print("trajectory_x4 : ", self.trajectory_x4)
+        print("trajectory_x5 : ", self.trajectory_x5)
+        print("trajectory_y1 : ", self.trajectory_y1)
+        print("trajectory_y2 : ", self.trajectory_y2)
+        print("trajectory_y3 : ", self.trajectory_y3)
+        print("trajectory_y4 : ", self.trajectory_y4)
+        print("trajectory_y5 : ", self.trajectory_y5)
     
     # def point_setting(self, obj_num, ) :
 
