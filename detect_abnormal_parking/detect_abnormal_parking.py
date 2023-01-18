@@ -16,16 +16,14 @@ from common.bus_call import bus_call
 from common.FPS import PERF_DATA
 
 import pyds
-import time
-import math
 
 no_display = False
-silent = False
+silent = True
 file_loop = False
 perf_data = None
 
 
-PGIE_CONFIG_FILE = "pgie_config_yolov4.txt"
+PGIE_CONFIG_FILE = "pgie_config_yolov4_test.txt"
 TRACKER_CONFIG_FILE = "dstest2_tracker_config.txt"
 MAX_DISPLAY_LEN=64
 PGIE_CLASS_ID_CAR = 0
@@ -35,8 +33,7 @@ MUXER_OUTPUT_HEIGHT=1080
 MUXER_BATCH_TIMEOUT_USEC=4000000
 TILED_OUTPUT_WIDTH=1920
 TILED_OUTPUT_HEIGHT=1080
-CH2_CENTER_LINE=[[1070,1066],[997,408]]
-CH4_CENTER_LINE=[[877,1080],[965,200]]
+
 GST_CAPS_FEATURES_NVMM="memory:NVMM"
 OSD_PROCESS_MODE= 0
 OSD_DISPLAY_TEXT= 1
@@ -44,7 +41,8 @@ TRACKING_PROCESS = 1
 past_tracking_meta=[0]
 pgie_classes_str= ["Car", "Person"]
 
-
+# pgie_src_pad_buffer_probe  will extract metadata received on tiler sink pad
+# and update params for drawing rectangle, object information etc.
 # def pgie_src_pad_buffer_probe(pad,info,u_data):
 def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
     frame_number=0
@@ -57,48 +55,22 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
 
     batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))
     l_frame = batch_meta.frame_meta_list
-
-    past_circle_params = u_data.previous_point_dict
-    object_id_in_roi = u_data.object_in_roi
-    current_object_id_in_roi = u_data.current_object_in_roi
-
-    point_x = u_data.trajectory_x
-    point_y = u_data.trajectory_y
-
-    x0 = u_data.trajectory_x0
-    y0 = u_data.trajectory_y0
-    
-    
-
     while l_frame is not None:
         try:
             frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
         except StopIteration:
             break
-        
-        ### print all u_data
-        # u_data.print_object_in_roi_info()
-        # u_data.print_previous_point_dict_info()   
-        u_data.clear_current_object_in_roi()
 
         frame_number=frame_meta.frame_num
         l_obj=frame_meta.obj_meta_list
         num_rects = frame_meta.num_obj_meta
-
         obj_counter = {
             PGIE_CLASS_ID_CAR:0,
             PGIE_CLASS_ID_PERSON:0,
         }
-        
-        #Display Text
         display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
         display_meta.num_labels = 1
-        # py_nvosd_circle_params = display_meta.circle_params
-        
-        
-        roi_obj_count = 0
-        line_num = 0
-        text_num = 0
+
         while l_obj :
             try: 
                 # Casting l_obj.data to pyds.NvDsObjectMeta
@@ -106,69 +78,30 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
             except StopIteration:
                 break
             obj_counter[obj_meta.class_id] += 1
-           
+            obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 0.0)
+
             if (obj_meta.class_id == 0):
-                obj_meta.rect_params.border_width = 0
-                obj_meta.text_params.text_bg_clr.alpha =0
-                obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
+                obj_meta.text_params.text_bg_clr.alpha = 0.8
+                obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
+                obj_meta.rect_params.border_width = 2
+                obj_meta.rect_params.has_bg_color = 0
+                obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.0)
 
-            #ROI 영역 내에 있는 obj_meta에 대해서만 처리함
             l_user_meta=obj_meta.obj_user_meta_list
-
             while l_user_meta:
                 try:
                     user_meta = pyds.NvDsUserMeta.cast(l_user_meta.data)
                     if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):   
                         user_meta_data = pyds.NvDsAnalyticsObjInfo.cast(user_meta.user_meta_data)
                         if (user_meta_data.roiStatus) and (obj_meta.class_id == 0) : 
+                            obj_meta.rect_params.border_width = 2
+                            obj_meta.text_params.font_params.font_size =10
+                            obj_meta.text_params.text_bg_clr.alpha =0.0
+                            obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
+                            obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 1.0)
                             
-                            if not obj_meta.object_id in object_id_in_roi :
-                                object_id_in_roi.append(obj_meta.object_id)
-                            current_object_id_in_roi.append(obj_meta.object_id)
+                            # print("Object {0} roi status: {1}".format(obj_meta.object_id, user_meta_data.roiStatus))      
 
-                            obj_meta.text_params.text_bg_clr.alpha =1
-                            obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
-                            obj_meta.rect_params.border_width = 0
-                            obj_meta.rect_params.has_bg_color = 1
-                            # obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
-
-                            # bbox point info
-                            bbox_top = obj_meta.rect_params.top
-                            bbox_left = obj_meta.rect_params.left
-                            bbox_width = obj_meta.rect_params.width
-                            bbox_height = obj_meta.rect_params.height
-
-                            # bbox bottom center point location
-                            bbox_bottom_x = int(bbox_left + bbox_width / 2)
-                            bbox_bottom_y = int(bbox_top + bbox_height) 
-                            bbox_center = (bbox_bottom_x , bbox_bottom_y)
-                            
-                            x0[obj_meta.object_id] = int(bbox_center[0])
-                            y0[obj_meta.object_id] = int(bbox_center[1])
-
-                            display_meta.circle_params[roi_obj_count].xc = int(bbox_center[0])
-                            display_meta.circle_params[roi_obj_count].yc = int(bbox_center[1])
-                            display_meta.circle_params[roi_obj_count].radius = 5
-                            display_meta.circle_params[roi_obj_count].has_bg_color = 1
-
-                            if obj_meta.object_id % 5 == 0 :
-                                obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
-                                display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                            elif obj_meta.object_id % 5 == 1 :
-                                obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
-                                display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                            elif obj_meta.object_id % 5 == 2 :
-                                obj_meta.rect_params.bg_color.set(0.0, 0.0, 1.0, 0.4)
-                                display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                            elif obj_meta.object_id % 5 == 3 :
-                                obj_meta.rect_params.bg_color.set(0.0, 1.0, 1.0, 0.6)
-                                display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                            else :
-                                obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.3)
-                                display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
- 
-                            roi_obj_count += 1
-       
                 except StopIteration:
                     break
 
@@ -176,231 +109,78 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                     l_user_meta = l_user_meta.next
                 except StopIteration:
                     break
+
             try: 
                 l_obj=l_obj.next
             except StopIteration:
                 break
 
-### draw trajectory circle
-        for i in range(len(current_object_id_in_roi)) :
-            if frame_number % 25 == 0 and display_meta.circle_params[i].yc > 80 and display_meta.circle_params[i].yc < 1000 :
-                if not current_object_id_in_roi[i] in point_x :
-                    point_x[current_object_id_in_roi[i]] = [display_meta.circle_params[i].xc]
-                    point_x[current_object_id_in_roi[i]].append(display_meta.circle_params[i].xc)
-                    point_x[current_object_id_in_roi[i]].append(display_meta.circle_params[i].xc)
-                    point_x[current_object_id_in_roi[i]].append(display_meta.circle_params[i].xc)
-                    point_y[current_object_id_in_roi[i]] = [display_meta.circle_params[i].yc]
-                    point_y[current_object_id_in_roi[i]].append(display_meta.circle_params[i].yc)
-                    point_y[current_object_id_in_roi[i]].append(display_meta.circle_params[i].yc)
-                    point_y[current_object_id_in_roi[i]].append(display_meta.circle_params[i].yc)
-                else :
-                    point_x[current_object_id_in_roi[i]].pop(0)
-                    point_x[current_object_id_in_roi[i]].append(display_meta.circle_params[i].xc)
-                    point_y[current_object_id_in_roi[i]].pop(0)
-                    point_y[current_object_id_in_roi[i]].append(display_meta.circle_params[i].yc)              
         
-        ### draw trajectory circle
-        for i in current_object_id_in_roi :
-            if i in point_x :
-                for j in range(len(point_x[i])) :
-                    display_meta.circle_params[roi_obj_count].xc = point_x[i][j]
-                    display_meta.circle_params[roi_obj_count].yc = point_y[i][j]
-                    display_meta.circle_params[roi_obj_count].radius = 4
-                    if i % 5 == 0 :
-                        display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                    elif i % 5 == 1 :
-                        display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                    elif i % 5 == 2 :
-                        display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                    elif i % 5 == 3 :
-                        display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                    else :
-                        display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
-                    roi_obj_count += 1
-
-
-        ### draw trajectory line
-        for i in current_object_id_in_roi :
-            if i in point_x :
-                for j in range(len(point_x[i])-1) :
-                    display_meta.line_params[line_num].x1 = point_x[i][j]
-                    display_meta.line_params[line_num].x2 = point_x[i][j+1]
-                    display_meta.line_params[line_num].y1 = point_y[i][j]
-                    display_meta.line_params[line_num].y2 = point_y[i][j+1]
-                    display_meta.line_params[line_num].line_width = 4
-                    if i % 5 == 0 :
-                        display_meta.line_params[line_num].line_color.set(0.0, 1.0, 0.0, 0.9)
-                    elif i % 5 == 1 :
-                        display_meta.line_params[line_num].line_color.set(1.0, 0.0, 0.0, 0.9)
-                    elif i % 5 == 2 :
-                        display_meta.line_params[line_num].line_color.set(0.0, 0.0, 1.0, 0.9)
-                    elif i % 5 == 3 :
-                        display_meta.line_params[line_num].line_color.set(0.0, 1.0, 1.0, 0.9)
-                    else :
-                        display_meta.line_params[line_num].line_color.set(1.0, 0.0, 1.0, 0.9)
-                    line_num += 1
-                
-                display_meta.line_params[line_num].x1 = point_x[i][-1]
-                display_meta.line_params[line_num].x2 = x0[i]
-                display_meta.line_params[line_num].y1 = point_y[i][-1]
-                display_meta.line_params[line_num].y2 = y0[i]
-                display_meta.line_params[line_num].line_width = 4
-                if i % 5 == 0 :
-                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 0.0, 0.9)
-                elif i % 5 == 1 :
-                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 0.0, 0.9)
-                elif i % 5 == 2 :
-                    display_meta.line_params[line_num].line_color.set(0.0, 0.0, 1.0, 0.9)
-                elif i % 5 == 3 :
-                    display_meta.line_params[line_num].line_color.set(0.0, 1.0, 1.0, 0.9)
-                else :
-                    display_meta.line_params[line_num].line_color.set(1.0, 0.0, 1.0, 0.9)
-                line_num += 1
-                
-                ###first last point line
-                if i == 9 :
-                    angle_main = calc_angle_between_2line(point_x[i][0], point_y[i][0], x0[i], y0[i], CH4_CENTER_LINE[0][0], CH4_CENTER_LINE[0][1], CH4_CENTER_LINE[1][0], CH4_CENTER_LINE[1][1])
-                
-                angle = calc_angle_between_2line(point_x[i][0], point_y[i][0], x0[i], y0[i], CH4_CENTER_LINE[0][0], CH4_CENTER_LINE[0][1], CH4_CENTER_LINE[1][0], CH4_CENTER_LINE[1][1])
-                if angle >= 40 :
-                    display_meta.line_params[line_num].x1 = point_x[i][0]
-                    display_meta.line_params[line_num].x2 = x0[i]
-                    display_meta.line_params[line_num].y1 = point_y[i][0]
-                    display_meta.line_params[line_num].y2 = y0[i]
-                    display_meta.line_params[line_num].line_width = 4
-                    display_meta.line_params[line_num].line_color.set(1.0, 1.0, 1.0, 1.0)
-                    line_num += 1
-
-                
-
-        output_text = ""    
-        output_text = output_text + "Vehicle : " + str(len(current_object_id_in_roi))
-
-        # if not 16 in current_object_id_in_roi :
-        display_meta.text_params[text_num].display_text = output_text
-        display_meta.text_params[text_num].x_offset = 0
-        display_meta.text_params[text_num].y_offset = 0
-        display_meta.text_params[text_num].font_params.font_name = "Serif"
-        display_meta.text_params[text_num].font_params.font_size = 28
-        display_meta.text_params[text_num].font_params.font_color.set(0.0, 1.0, 0.0, 0.9)
-        display_meta.text_params[text_num].set_bg_clr = 1
-        display_meta.text_params[text_num].text_bg_clr.set(0.0, 0.0, 0.0, 0.7)
+        l_user = frame_meta.frame_user_meta_list
+        while l_user:
+            try:
+                user_meta = pyds.NvDsUserMeta.cast(l_user.data)
+                if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSFRAME.USER_META"):
+                    user_meta_data = pyds.NvDsAnalyticsFrameMeta.cast(user_meta.user_meta_data)
+                    # if user_meta_data.objInROIcnt: 
+                    #     print("Objs in ROI: {0}".format(user_meta_data.objInROIcnt))                    
+                    
+            except StopIteration:
+                break
+            try:
+                l_user = l_user.next
+            except StopIteration:
+                break
+        zone_status = sorted(list(user_meta_data.objInROIcnt.items()))
+        # print("zone_status : ",zone_status)
+        # # sorted(zone_status)
+        # print("sorted result : ",sorted(zone_status))
         
-        # print("frame : ", frame_number, " [] ", current_object_id_in_roi)
-        if 9 in current_object_id_in_roi  :
-            print(frame_number , "  ", angle_main)
-            if roi_obj_count >= 4 and angle_main > 20 and frame_number > 100:
-                output_text =  output_text + "\nvehicle 9 : Abnormal Driving!!!\n Rotate Handle Right : " + str(angle_main) 
-                display_meta.text_params[text_num].display_text = output_text
-                display_meta.text_params[text_num].x_offset = 0
-                display_meta.text_params[text_num].y_offset = 0
-                display_meta.text_params[text_num].font_params.font_name = "Serif"
-                display_meta.text_params[text_num].font_params.font_size = 35
-                display_meta.text_params[text_num].font_params.font_color.set(1.0, 0.0, 0.0, 1.0)
-                display_meta.text_params[text_num].set_bg_clr = 1
-                display_meta.text_params[text_num].text_bg_clr.set(0.0, 0.0, 0.0, 0.9)
-            # text_num += 1
+        # print("zone_status : ", zone_status)
+        # print("length of zone_status : ", len(zone_status))
+        # print("zone_status[0] : ", zone_status[0])
+        # print("zone_status[0][0] : ", zone_status[0][0])
+        # print("zone_status[0][1] : ", zone_status[0][1])
 
-        text_num += 1
+        # output_text =""
+        # for i in range(len(zone_status)):
+        #     if zone_status[i][0].find('zone1') > 0 :
+        #         output_text = output_text + "ZONE 1 : " + str(zone_status[i][1]) 
+        #     elif zone_status[i][0].find('zone2') > 0 :
+        #         output_text = output_text + "ZONE 2 : " + str(zone_status[i][1]) 
+        #     elif zone_status[i][0].find('zone3') > 0 :
+        #         output_text = output_text + "\nZONE 3 : " + str(zone_status[i][1])
+        #     elif zone_status[i][0].find('zone4') > 0 :
+        #         output_text = output_text + "ZONE 4 : " + str(zone_status[i][1])
+        #     elif zone_status[i][0].find('zone5') > 0 :
+        #         output_text = output_text + "ZONE 5 : " + str(zone_status[i][1])
+        #     elif zone_status[i][0].find('zone6') > 0 :
+        #         output_text = output_text + "\nZONE 6 : " + str(zone_status[i][1])
 
+        # py_nvosd_text_params = display_meta.text_params[0]
+        # # py_nvosd_text_params.display_text = "Occupied Parking Space: {}".format(output_text)
+        # py_nvosd_text_params.display_text = output_text
+        # py_nvosd_text_params.x_offset = 0
+        # py_nvosd_text_params.y_offset = 0
+        # py_nvosd_text_params.font_params.font_name = "Serif"
+        # py_nvosd_text_params.font_params.font_size = 18
+        # py_nvosd_text_params.font_params.font_color.set(0.0, 1.0, 0.0, 0.9)
+        # py_nvosd_text_params.set_bg_clr = 1
+        # py_nvosd_text_params.text_bg_clr.set(0.0, 0.0, 0.0, 0.7)
 
+        # # Update frame rate through this probe
+        # stream_index = "stream{0}".format(frame_meta.pad_index)
+        # global perf_data
+        # perf_data.update_fps(stream_index)
 
-
-        display_meta.num_circles = roi_obj_count
-        display_meta.num_lines = line_num
-        # print("frame : ", frame_number, " total point num : ", display_meta.num_circles , " total line num : ", display_meta.num_lines , "\n")
- 
-        stream_index = "stream{0}".format(frame_meta.pad_index)
-        global perf_data
-        perf_data.update_fps(stream_index)
-
-        pyds.nvds_add_display_meta_to_frame(frame_meta, display_meta)
+        # pyds.nvds_add_display_meta_to_frame(frame_meta, display_meta)
 
         try:
             l_frame=l_frame.next
         except StopIteration:
             break
-    
-        
 
     return Gst.PadProbeReturn.OK
-
-def dot(vevtor1, vector2):
-    return vevtor1[0]*vector2[0]+vevtor1[1]*vector2[1]
-
-def calc_angle_between_2line(x1, y1, x2, y2, x3, y3, x4, y4):
-    # Get nicer vector form
-    vector1 = [(x1-x2), (y1-y2)]
-    vector2 = [(x3-x4), (y3-y4)]
-    
-    dot_prod = dot(vector1, vector2)
-    # Get magnitudes
-    magA = dot(vector1, vector1)**0.5
-    magB = dot(vector2, vector2)**0.5
-    # Get cosine value
-    cos_ = dot_prod/magA/magB
-    # Get angle in radians and then convert to degrees
-    angle = math.acos(dot_prod/magB/magA)
-    # Basically doing angle <- angle mod 360
-    ang_deg = math.degrees(angle)%360
-    
-    if ang_deg-180 >= 0 :
-        result = 360 - ang_deg
-        # As in if statement
-    else: 
-        result = ang_deg
-    
-    if result >= 90 :
-        result = 180 - result
-
-    return round(result,2)
-
-
-class trajectory_point :
-
-    object_in_roi = []
-    current_object_in_roi = []
-    previous_point_dict = {}
-
-    trajectory_x = {}
-    trajectory_y = {}
-    trajectory_x0 = {}
-    trajectory_y0 = {}
-    
-
-    def print_trajectory_point_info(self):
-        print("trajectory_x : ", self.trajectory_x)
-        print("trajectory_y : ", self.trajectory_y)
-        print("trajectory_x0 : ", self.trajectory_x0)
-        print("trajectory_y0 : ", self.trajectory_y0)
-        
-    
-    # def point_setting(self, obj_num, ) :
-
-    def clear_previous_point(self):
-        previous_point_dict = {}
-
-    def print_object_in_roi_info(self):
-        print("len(object_in_roi : ", len(self.object_in_roi))
-        print("object_in_roi : ", self.object_in_roi)
-    
-    def print_current_object_in_roi(self):
-        print("len(current_object_in_roi : ", len(trajectory_point.current_object_in_roi))
-        print("current_object_in_roi : ", trajectory_point.current_object_in_roi)
-
-    def print_previous_point_dict_info(self):
-        print("len(previous_point_dict : ", len(self.previous_point_dict))
-        print("previous_point_dict : ", self.previous_point_dict)
-
-    def __init__(self):
-        self.previous_point_dict = {}
-    
-    def clear_current_object_in_roi(self):
-        trajectory_point.current_object_in_roi = []
-
-
-
-
 
 
 
@@ -478,7 +258,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
 
     number_sources=len(args)
 
-    userdata = trajectory_point()
+    print("###########################len args : ",len(args))
 
     # Standard GStreamer initialization
     Gst.init(None)
@@ -516,6 +296,8 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
         if not srcpad:
             sys.stderr.write("Unable to create src pad bin \n")
         srcpad.link(sinkpad)
+
+    
     queue1=Gst.ElementFactory.make("queue","queue1")
     queue2=Gst.ElementFactory.make("queue","queue2")
     queue3=Gst.ElementFactory.make("queue","queue3")
@@ -530,7 +312,6 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     pipeline.add(queue5)
     pipeline.add(queue6)
     pipeline.add(queue7)
-
     nvdslogger = None
     transform = None
 
@@ -554,6 +335,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     nvanalytics = Gst.ElementFactory.make("nvdsanalytics", "analytics")
     if not nvanalytics:
         sys.stderr.write(" Unable to create nvanalytics \n")
+    
     nvanalytics.set_property("config-file", "config_nvdsanalytics_test.txt")
 
     if disable_probe:
@@ -675,7 +457,6 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     tracker.link(queue3)
     queue3.link(nvanalytics)
     nvanalytics.link(queue4)
-    
     if nvdslogger:
         queue4.link(nvdslogger)
         nvdslogger.link(tiler)
@@ -691,32 +472,21 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
         transform.link(sink)
     else:
         nvosd.link(queue7)
-        queue7.link(sink)   
+        queue7.link(sink) 
 
     # create an event loop and feed gstreamer bus mesages to it
     loop = GLib.MainLoop()
     bus = pipeline.get_bus()
     bus.add_signal_watch()
     bus.connect ("message", bus_call, loop)
-
     nvanalytics_src_pad=nvanalytics.get_static_pad("src")
     if not nvanalytics_src_pad:
         sys.stderr.write(" Unable to get src pad \n")
     else:
         # if not disable_probe:
-        nvanalytics_src_pad.add_probe(Gst.PadProbeType.BUFFER, nvanalytics_src_pad_buffer_probe, userdata)
+        nvanalytics_src_pad.add_probe(Gst.PadProbeType.BUFFER, nvanalytics_src_pad_buffer_probe, 0)
         # perf callback function to print fps every 5 sec
         GLib.timeout_add(5000, perf_data.perf_print_callback)
-
-
-    # pgie_src_pad=pgie.get_static_pad("src")
-    # if not pgie_src_pad:
-    #     sys.stderr.write(" Unable to get src pad \n")
-    # else:
-    #     # if not disable_probe:
-    #     pgie_src_pad.add_probe(Gst.PadProbeType.BUFFER, pgie_src_pad_buffer_probe, 0)
-    #     # perf callback function to print fps every 5 sec
-    #     GLib.timeout_add(5000, perf_data.perf_print_callback)
 
     # List the sources
     print("Now playing...")
