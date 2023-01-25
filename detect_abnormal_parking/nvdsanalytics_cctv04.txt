@@ -26,19 +26,22 @@ config-height=1080
 #osd-mode 0: Dont display any lines, rois and text
 #         1: Display only lines, rois and static text i.e. labels
 #         2: Display all info from 1 plus information about counts
-osd-mode=2
+osd-mode=1
 #Set OSD font size that has to be displayed
-display-font-size=20
+display-font-size=10
 
 ## Per stream configuration
 [roi-filtering-stream-0]
 #enable or disable following feature
 enable=1
+
 #ROI to filter select objects, and remove from meta data
+#roi-ch4-parking-space1 = 1920; 1080; 1784; 1080; 1096; 207; 1104; 158; 1417; 158; 1912; 347
+#roi-ch4-parking-space2 = 7; 557; 71; 370; 363; 208; 470; 162; 832; 164; 841; 215; 479; 555
+roi-ch4-parking-space1 = 27; 538; 258; 272; 467; 157; 780; 150; 840; 201; 472; 559;
+roi-ch4-parking-space2 = 1795; 1080;1100; 204; 1100; 144; 1365; 165; 1911; 379; 1920; 1080;
+roi-ch4-passage = 0; 566; 0; 1080; 1780; 1080; 1391; 543; 1093; 205; 848; 204; 502; 563;
 
-roi-ch4-1 = 1920; 1080; 1784; 1080; 1096; 207; 1104; 158; 1417; 158; 1912; 347
-
-roi-ch4-2 = 7; 557; 71; 370; 363; 208; 470; 162; 832; 164; 841; 215; 479; 555
 
 #remove objects in the ROI
 inverse-roi=0

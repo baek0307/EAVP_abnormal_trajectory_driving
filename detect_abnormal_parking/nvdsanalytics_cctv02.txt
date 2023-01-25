@@ -34,14 +34,12 @@ display-font-size=20
 [roi-filtering-stream-0]
 #enable or disable following feature
 enable=1
+
 #ROI to filter select objects, and remove from meta data
-#roi-RF=850;270;1120;270;1890;1080;230;1080
-#roi-CCTV02=850;270;1120;270;1890;1080;230;1080
+roi-ch2-parking-space1 = 0; 1080; 0; 500; 513; 260; 829; 244; 837; 305; 235; 1080
+roi-ch2-parking-space2 = 863; 277; 1108; 261; 1920; 1080; 1920; 360; 1345; 196; 860; 198
+roi-ch2-passage = 844; 288; 250; 1080; 1880; 1080; 1113; 273
 
-
-roi-ch2-1 = 0; 1080; 0; 500; 513; 260; 829; 244; 837; 305; 235; 1080
-
-roi-ch2-2 = 863; 277; 1108; 261; 1920; 1080; 1920; 360; 1345; 196; 860; 198
 
 
 #remove objects in the ROI
