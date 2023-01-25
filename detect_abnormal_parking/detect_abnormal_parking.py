@@ -61,9 +61,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
         except StopIteration:
             break
 
-        frame_number=frame_meta.frame_num
         l_obj=frame_meta.obj_meta_list
-        num_rects = frame_meta.num_obj_meta
         obj_counter = {
             PGIE_CLASS_ID_CAR:0,
             PGIE_CLASS_ID_PERSON:0,
@@ -131,11 +129,11 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                 l_user = l_user.next
             except StopIteration:
                 break
-        zone_status = sorted(list(user_meta_data.objInROIcnt.items()))
+
+        # zone_status = sorted(list(user_meta_data.objInROIcnt.items()))
         # print("zone_status : ",zone_status)
         # # sorted(zone_status)
         # print("sorted result : ",sorted(zone_status))
-        
         # print("zone_status : ", zone_status)
         # print("length of zone_status : ", len(zone_status))
         # print("zone_status[0] : ", zone_status[0])
