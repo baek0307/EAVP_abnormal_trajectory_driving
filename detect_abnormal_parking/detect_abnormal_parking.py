@@ -118,15 +118,15 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                 break
             obj_counter[obj_meta.class_id] += 1
            
-            if (obj_meta.class_id == 0):
+            if (obj_meta.class_id == 0 or obj_meta.class_id == 0):
                 obj_meta.rect_params.border_width = 0
                 obj_meta.text_params.text_bg_clr.alpha =0
                 obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
+                obj_meta.text_params.font_params.font_size = 15
 
             #ROI 영역 내에 있는 obj_meta에 대해서만 처리함
             l_user_meta=obj_meta.obj_user_meta_list
             while l_user_meta:
-                
                 try:
                     user_meta = pyds.NvDsUserMeta.cast(l_user_meta.data)
                     if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):   
@@ -146,7 +146,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                 for key in object_id_in_passage :
                                     if obj_meta.object_id == key :
                                         if (time.time() - dict_car_in_passage_time[key] > 5) and int(time.time() - dict_car_in_passage_time[key]) %  5 == 0 :
-                                            print("teime : ", time.time() - dict_car_in_passage_time[key])
+                                            # print("teime : ", time.time() - dict_car_in_passage_time[key])
                                             # bbox point info
                                             bbox_top = obj_meta.rect_params.top
                                             bbox_left = obj_meta.rect_params.left
@@ -159,7 +159,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                             previous_x = dict_bbox_x_in_passage[key]
                                             previous_y = dict_bbox_y_in_passage[key]
                                             
-                                            print("ID : ", key, "dist : ", calc_distance_between_points(bbox_bottom_x, bbox_bottom_y, previous_x, previous_y))
+                                            # print("ID : ", key, "dist : ", calc_distance_between_points(bbox_bottom_x, bbox_bottom_y, previous_x, previous_y))
                                             if calc_distance_between_points(bbox_bottom_x, bbox_bottom_y, previous_x, previous_y) < 30 :
                                                 if int(time.time() - dict_car_in_passage_time[key]) % 15 == 0 :
                                                     if not key in double_parking :
@@ -169,34 +169,33 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                                     double_parking.remove(key)
                                             
                                 # print("@@@object_id_in_passage : ", object_id_in_passage) 
-                                # print("###double_parking : ", double_parking)                
-                                if obj_meta.object_id in double_parking :
-                                    obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.3)
-
-                                
+                                # print("###double_parking : ", double_parking)
+                                obj_meta.rect_params.bg_color.set(0.0, 0.6, 0.6, 0.5)     
                                 obj_meta.text_params.text_bg_clr.alpha =1
                                 obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
-                                obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 0.6)
-                                obj_meta.rect_params.border_width = 3
-                                obj_meta.rect_params.has_bg_color = 1
                                 
-                                # if obj_meta.object_id % 5 == 0 :
-                                #     obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
-                                #     # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                                # elif obj_meta.object_id % 5 == 1 :
-                                #     obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
-                                #     # display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                                # elif obj_meta.object_id % 5 == 2 :
-                                #     obj_meta.rect_params.bg_color.set(0.0, 0.0, 1.0, 0.4)
-                                #     # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                                # elif obj_meta.object_id % 5 == 3 :
-                                #     obj_meta.rect_params.bg_color.set(0.0, 1.0, 1.0, 0.6)
-                                #     # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                                # else :
-                                #     obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.3)
-                                #     # display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
+                                obj_meta.rect_params.has_bg_color = 1           
+                                if obj_meta.object_id in double_parking :
+                                    obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
+                                    obj_meta.rect_params.border_color.set(1.0, 0.0, 0.0, 0.6)
+                                    obj_meta.rect_params.border_width = 4
+
+                                
+                                
+                                
 
                                 roi_obj_count += 1
+
+                            #객체가 통로 구간에 있을 경우
+                            elif str(user_meta_data.roiStatus).find("parking") > 0 :
+                                obj_meta.text_params.text_bg_clr.alpha =0
+                                obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
+                                obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 0.6)
+                                obj_meta.rect_params.border_width = 3
+                                obj_meta.rect_params.has_bg_color = 0     
+
+                                roi_obj_count += 1 
+
                     # print("object_id_in_passage : ", object_id_in_passage)
                     # print("object_id_in_passage_time : ", dict_car_in_passage_time)
                     # print("dict_bbox_x_in_passage : ", dict_bbox_x_in_passage)
@@ -217,15 +216,16 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
             except StopIteration:
                 break
         
-        py_nvosd_text_params = display_meta.text_params[0]
-        py_nvosd_text_params.display_text = "Double Parking Count : {}\n list : {})".format(len(double_parking), double_parking)
-        py_nvosd_text_params.x_offset = 10
-        py_nvosd_text_params.y_offset = 12
-        py_nvosd_text_params.font_params.font_name = "Serif"
-        py_nvosd_text_params.font_params.font_size = 20
-        py_nvosd_text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
-        py_nvosd_text_params.set_bg_clr = 1
-        py_nvosd_text_params.text_bg_clr.set(0.0, 0.0, 0.0, 0.7)
+        if frame_meta.source_id == 0 :
+            py_nvosd_text_params = display_meta.text_params[0]
+            py_nvosd_text_params.display_text = "Double Parking Count : {}\nList : {}".format(len(double_parking), double_parking)
+            py_nvosd_text_params.x_offset = 10
+            py_nvosd_text_params.y_offset = 12
+            py_nvosd_text_params.font_params.font_name = "Serif"
+            py_nvosd_text_params.font_params.font_size = 25
+            py_nvosd_text_params.font_params.font_color.set(0.0, 1.0, 0.0, 1.0)
+            py_nvosd_text_params.set_bg_clr = 1
+            py_nvosd_text_params.text_bg_clr.set(0.0, 0.0, 0.0, 0.7)
 
         stream_index = "stream{0}".format(frame_meta.pad_index)
         global perf_data

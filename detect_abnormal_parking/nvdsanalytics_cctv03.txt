@@ -26,7 +26,7 @@ config-height=1080
 #osd-mode 0: Dont display any lines, rois and text
 #         1: Display only lines, rois and static text i.e. labels
 #         2: Display all info from 1 plus information about counts
-osd-mode=2
+osd-mode=0
 #Set OSD font size that has to be displayed
 display-font-size=20
 
@@ -37,7 +37,7 @@ enable=1
 
 #ROI to filter select objects, and remove from meta data
 roi-ch2-parking-space1 = 154; 1080; 637; 489; 0; 440; 0; 1080; 
-roi-ch2-parking-space2 = 686; 450; 1424; 426; 1920; 430; 1920; 320; 720; 282; 
+roi-ch2-parking-space2 = 730; 450;  1920; 430; 1920; 220; 720; 222; 
 roi-ch3-passage = 678; 463; 180; 1080; 1920; 1080; 1920; 800; 1640; 550; 1920; 490; 1877; 434;
 
 
