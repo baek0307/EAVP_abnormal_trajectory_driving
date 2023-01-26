@@ -142,13 +142,11 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                     dict_bbox_x_in_passage[obj_meta.object_id] =  int(obj_meta.rect_params.left + obj_meta.rect_params.width / 2)
                                     dict_bbox_y_in_passage[obj_meta.object_id] =  int(obj_meta.rect_params.top + obj_meta.rect_params.height) 
                                 
-                                # 차량 화면에서 사라지면 pop해야하는데 이건 좀 나중에 구축 예정
-                            
-                                # calc_distance_between_points(id, x, y, w, h, self)
-                                # for key in candidate_double_parking.copy().keys():
+                
                                 for key in object_id_in_passage :
                                     if obj_meta.object_id == key :
-                                        if int(time.time() - dict_car_in_passage_time[key]) %  5 == 0 :
+                                        if (time.time() - dict_car_in_passage_time[key] > 5) and int(time.time() - dict_car_in_passage_time[key]) %  5 == 0 :
+                                            print("teime : ", time.time() - dict_car_in_passage_time[key])
                                             # bbox point info
                                             bbox_top = obj_meta.rect_params.top
                                             bbox_left = obj_meta.rect_params.left
@@ -170,10 +168,6 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                                 if key in double_parking :
                                                     double_parking.remove(key)
                                             
-                                                # dict_bbox_x_in_passage[obj_meta.object_id] = int(obj_meta.rect_params.left + obj_meta.rect_params.width / 2)
-                                                # dict_bbox_y_in_passage[obj_meta.object_id] =  int(obj_meta.rect_params.top + obj_meta.rect_params.height) 
-                                #             print("ID : ", key , "dict_bbox_y_in_passage : ", dict_bbox_y_in_passage)
-
                                 # print("@@@object_id_in_passage : ", object_id_in_passage) 
                                 # print("###double_parking : ", double_parking)                
                                 if obj_meta.object_id in double_parking :
@@ -228,7 +222,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
         py_nvosd_text_params.x_offset = 10
         py_nvosd_text_params.y_offset = 12
         py_nvosd_text_params.font_params.font_name = "Serif"
-        py_nvosd_text_params.font_params.font_size = 10
+        py_nvosd_text_params.font_params.font_size = 20
         py_nvosd_text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
         py_nvosd_text_params.set_bg_clr = 1
         py_nvosd_text_params.text_bg_clr.set(0.0, 0.0, 0.0, 0.7)
