@@ -148,7 +148,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                 # for key in candidate_double_parking.copy().keys():
                                 for key in object_id_in_passage :
                                     if obj_meta.object_id == key :
-                                        if time.time() - dict_car_in_passage_time[key] > 5 :
+                                        if int(time.time() - dict_car_in_passage_time[key]) %  5 == 0 :
                                             # bbox point info
                                             bbox_top = obj_meta.rect_params.top
                                             bbox_left = obj_meta.rect_params.left
@@ -160,20 +160,25 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                             bbox_bottom_y = int(bbox_top + bbox_height) 
                                             previous_x = dict_bbox_x_in_passage[key]
                                             previous_y = dict_bbox_y_in_passage[key]
-
-                                            if calc_distance_between_points(bbox_bottom_x, bbox_bottom_y, previous_x, previous_y) < 100 :
-                                                if not key in double_parking :
-                                                    double_parking.append(key)
+                                            
+                                            print("ID : ", key, "dist : ", calc_distance_between_points(bbox_bottom_x, bbox_bottom_y, previous_x, previous_y))
+                                            if calc_distance_between_points(bbox_bottom_x, bbox_bottom_y, previous_x, previous_y) < 30 :
+                                                if int(time.time() - dict_car_in_passage_time[key]) % 15 == 0 :
+                                                    if not key in double_parking :
+                                                        double_parking.append(key)
                                             else :
                                                 if key in double_parking :
                                                     double_parking.remove(key)
                                             
-                                            dict_bbox_x_in_passage[str(key)] = int(obj_meta.rect_params.left + obj_meta.rect_params.width / 2)
-                                            dict_bbox_y_in_passage[obj_meta.object_id] =  int(obj_meta.rect_params.top + obj_meta.rect_params.height) 
+                                                # dict_bbox_x_in_passage[obj_meta.object_id] = int(obj_meta.rect_params.left + obj_meta.rect_params.width / 2)
+                                                # dict_bbox_y_in_passage[obj_meta.object_id] =  int(obj_meta.rect_params.top + obj_meta.rect_params.height) 
+                                #             print("ID : ", key , "dict_bbox_y_in_passage : ", dict_bbox_y_in_passage)
 
-                                print("double_parking : ", double_parking)                
+                                # print("@@@object_id_in_passage : ", object_id_in_passage) 
+                                # print("###double_parking : ", double_parking)                
                                 if obj_meta.object_id in double_parking :
                                     obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.3)
+
                                 
                                 obj_meta.text_params.text_bg_clr.alpha =1
                                 obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
@@ -217,6 +222,16 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                 l_obj=l_obj.next
             except StopIteration:
                 break
+        
+        py_nvosd_text_params = display_meta.text_params[0]
+        py_nvosd_text_params.display_text = "Double Parking Count : {}\n list : {})".format(len(double_parking), double_parking)
+        py_nvosd_text_params.x_offset = 10
+        py_nvosd_text_params.y_offset = 12
+        py_nvosd_text_params.font_params.font_name = "Serif"
+        py_nvosd_text_params.font_params.font_size = 10
+        py_nvosd_text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
+        py_nvosd_text_params.set_bg_clr = 1
+        py_nvosd_text_params.text_bg_clr.set(0.0, 0.0, 0.0, 0.7)
 
         stream_index = "stream{0}".format(frame_meta.pad_index)
         global perf_data
