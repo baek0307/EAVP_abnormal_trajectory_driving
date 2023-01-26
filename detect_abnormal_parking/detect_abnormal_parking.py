@@ -14,6 +14,7 @@ import platform
 from common.is_aarch_64 import is_aarch64
 from common.bus_call import bus_call
 from common.FPS import PERF_DATA
+from time import time
 
 import pyds
 import time
@@ -50,6 +51,8 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
     frame_number=0
     num_rects=0
     got_fps = False
+    flag_for_check_abnormal = 0
+
     gst_buffer = info.get_buffer()
     if not gst_buffer:
         print("Unable to get GstBuffer ")
@@ -61,6 +64,12 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
     past_circle_params = u_data.previous_point_dict
     object_id_in_roi = u_data.object_in_roi
     current_object_id_in_roi = u_data.current_object_in_roi
+
+    object_id_in_passage = u_data.object_in_passage
+    dict_car_in_passage_time = u_data.dict_car_in_passage_time
+    dict_bbox_x_in_passage = u_data.dict_bbox_x_in_passage
+    dict_bbox_y_in_passage = u_data.dict_bbox_y_in_passage
+    double_parking = u_data.double_parking
 
     point_x = u_data.trajectory_x
     point_y = u_data.trajectory_y
@@ -80,6 +89,8 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
         # u_data.print_object_in_roi_info()
         # u_data.print_previous_point_dict_info()   
         u_data.clear_current_object_in_roi()
+        u_data.clear_current_object_in_passage()
+        
 
         frame_number=frame_meta.frame_num
         l_obj=frame_meta.obj_meta_list
@@ -115,116 +126,84 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
             #ROI 영역 내에 있는 obj_meta에 대해서만 처리함
             l_user_meta=obj_meta.obj_user_meta_list
             while l_user_meta:
+                
                 try:
                     user_meta = pyds.NvDsUserMeta.cast(l_user_meta.data)
                     if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):   
                         user_meta_data = pyds.NvDsAnalyticsObjInfo.cast(user_meta.user_meta_data)
                         #객체가 roi영역에 존재하고 클래스가 차량일때
-                        # print("Object {0} roi status: {1}".format(obj_meta.object_id, user_meta_data.roiStatus))
-                        
                         if (user_meta_data.roiStatus) and obj_meta.class_id == 0   :
-                            # print("object id : ",obj_meta.object_id ,"section : ",str(user_meta_data.roiStatus))
-                            
+                            #객체가 통로 구간에 있을 경우
                             if str(user_meta_data.roiStatus).find("passage") > 0 :
-                                # print("good good")
-                                if not obj_meta.object_id in object_id_in_roi :
-                                    object_id_in_roi.append(obj_meta.object_id)
-                                current_object_id_in_roi.append(obj_meta.object_id)
+                                #매 프레임 새로운 차량 나오면 리스트와 3개의 딕셔너리에 정보 추가
+                                if not obj_meta.object_id in object_id_in_passage :
+                                    object_id_in_passage.append(obj_meta.object_id)
+                                    dict_car_in_passage_time[obj_meta.object_id] = time.time()
+                                    dict_bbox_x_in_passage[obj_meta.object_id] =  int(obj_meta.rect_params.left + obj_meta.rect_params.width / 2)
+                                    dict_bbox_y_in_passage[obj_meta.object_id] =  int(obj_meta.rect_params.top + obj_meta.rect_params.height) 
+                                
+                                # 차량 화면에서 사라지면 pop해야하는데 이건 좀 나중에 구축 예정
+                            
+                                # calc_distance_between_points(id, x, y, w, h, self)
+                                # for key in candidate_double_parking.copy().keys():
+                                for key in object_id_in_passage :
+                                    if obj_meta.object_id == key :
+                                        if time.time() - dict_car_in_passage_time[key] > 5 :
+                                            # bbox point info
+                                            bbox_top = obj_meta.rect_params.top
+                                            bbox_left = obj_meta.rect_params.left
+                                            bbox_width = obj_meta.rect_params.width
+                                            bbox_height = obj_meta.rect_params.height
 
+                                            # bbox bottom center point location
+                                            bbox_bottom_x = int(bbox_left + bbox_width / 2)
+                                            bbox_bottom_y = int(bbox_top + bbox_height) 
+                                            previous_x = dict_bbox_x_in_passage[key]
+                                            previous_y = dict_bbox_y_in_passage[key]
+
+                                            if calc_distance_between_points(bbox_bottom_x, bbox_bottom_y, previous_x, previous_y) < 100 :
+                                                if not key in double_parking :
+                                                    double_parking.append(key)
+                                            else :
+                                                if key in double_parking :
+                                                    double_parking.remove(key)
+                                            
+                                            dict_bbox_x_in_passage[str(key)] = int(obj_meta.rect_params.left + obj_meta.rect_params.width / 2)
+                                            dict_bbox_y_in_passage[obj_meta.object_id] =  int(obj_meta.rect_params.top + obj_meta.rect_params.height) 
+
+                                print("double_parking : ", double_parking)                
+                                if obj_meta.object_id in double_parking :
+                                    obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.3)
+                                
                                 obj_meta.text_params.text_bg_clr.alpha =1
                                 obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
-                                obj_meta.rect_params.border_width = 0
+                                obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 0.6)
+                                obj_meta.rect_params.border_width = 3
                                 obj_meta.rect_params.has_bg_color = 1
-                                # obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
                                 
-                                # bbox point info
-                                bbox_top = obj_meta.rect_params.top
-                                bbox_left = obj_meta.rect_params.left
-                                bbox_width = obj_meta.rect_params.width
-                                bbox_height = obj_meta.rect_params.height
-
-                                # bbox bottom center point location
-                                bbox_bottom_x = int(bbox_left + bbox_width / 2)
-                                bbox_bottom_y = int(bbox_top + bbox_height) 
-                                bbox_center = (bbox_bottom_x , bbox_bottom_y)
-                                
-                                x0[obj_meta.object_id] = int(bbox_center[0])
-                                y0[obj_meta.object_id] = int(bbox_center[1])
-
-                                # display_meta.circle_params[roi_obj_count].xc = int(bbox_center[0])
-                                # display_meta.circle_params[roi_obj_count].yc = int(bbox_center[1])
-                                # display_meta.circle_params[roi_obj_count].radius = 5
-                                # display_meta.circle_params[roi_obj_count].has_bg_color = 1
-
-                                if obj_meta.object_id % 5 == 0 :
-                                    obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
-                                    # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                                elif obj_meta.object_id % 5 == 1 :
-                                    obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
-                                    # display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                                elif obj_meta.object_id % 5 == 2 :
-                                    obj_meta.rect_params.bg_color.set(0.0, 0.0, 1.0, 0.4)
-                                    # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                                elif obj_meta.object_id % 5 == 3 :
-                                    obj_meta.rect_params.bg_color.set(0.0, 1.0, 1.0, 0.6)
-                                    # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                                else :
-                                    obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.3)
-                                    # display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
+                                # if obj_meta.object_id % 5 == 0 :
+                                #     obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
+                                #     # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
+                                # elif obj_meta.object_id % 5 == 1 :
+                                #     obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
+                                #     # display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
+                                # elif obj_meta.object_id % 5 == 2 :
+                                #     obj_meta.rect_params.bg_color.set(0.0, 0.0, 1.0, 0.4)
+                                #     # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
+                                # elif obj_meta.object_id % 5 == 3 :
+                                #     obj_meta.rect_params.bg_color.set(0.0, 1.0, 1.0, 0.6)
+                                #     # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
+                                # else :
+                                #     obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.3)
+                                #     # display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
 
                                 roi_obj_count += 1
+                    # print("object_id_in_passage : ", object_id_in_passage)
+                    # print("object_id_in_passage_time : ", dict_car_in_passage_time)
+                    # print("dict_bbox_x_in_passage : ", dict_bbox_x_in_passage)
+                    # print("dict_bbox_y_in_passage : ", dict_bbox_y_in_passage)
 
-                        # if (user_meta_data.roiStatus) and obj_meta.class_id == 0 : 
-                        #     if not obj_meta.object_id in object_id_in_roi :
-                        #         object_id_in_roi.append(obj_meta.object_id)
-                        #     current_object_id_in_roi.append(obj_meta.object_id)
-
-                        #     obj_meta.text_params.text_bg_clr.alpha =1
-                        #     obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
-                        #     obj_meta.rect_params.border_width = 0
-                        #     obj_meta.rect_params.has_bg_color = 1
-                        #     # obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
-                            
-                        #     # bbox point info
-                        #     bbox_top = obj_meta.rect_params.top
-                        #     bbox_left = obj_meta.rect_params.left
-                        #     bbox_width = obj_meta.rect_params.width
-                        #     bbox_height = obj_meta.rect_params.height
-
-                        #     # bbox bottom center point location
-                        #     bbox_bottom_x = int(bbox_left + bbox_width / 2)
-                        #     bbox_bottom_y = int(bbox_top + bbox_height) 
-                        #     bbox_center = (bbox_bottom_x , bbox_bottom_y)
-                            
-                        #     x0[obj_meta.object_id] = int(bbox_center[0])
-                        #     y0[obj_meta.object_id] = int(bbox_center[1])
-
-                        #     # display_meta.circle_params[roi_obj_count].xc = int(bbox_center[0])
-                        #     # display_meta.circle_params[roi_obj_count].yc = int(bbox_center[1])
-                        #     # display_meta.circle_params[roi_obj_count].radius = 5
-                        #     # display_meta.circle_params[roi_obj_count].has_bg_color = 1
-
-                        #     if obj_meta.object_id % 5 == 0 :
-                        #         obj_meta.rect_params.bg_color.set(0.0, 1.0, 0.0, 0.4)
-                        #         # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 0.0, 1.0)
-                        #     elif obj_meta.object_id % 5 == 1 :
-                        #         obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
-                        #         # display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 0.0, 1.0)
-                        #     elif obj_meta.object_id % 5 == 2 :
-                        #         obj_meta.rect_params.bg_color.set(0.0, 0.0, 1.0, 0.4)
-                        #         # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 0.0, 1.0, 1.0)
-                        #     elif obj_meta.object_id % 5 == 3 :
-                        #         obj_meta.rect_params.bg_color.set(0.0, 1.0, 1.0, 0.6)
-                        #         # display_meta.circle_params[roi_obj_count].circle_color.set(0.0, 1.0, 1.0, 1.0)
-                        #     else :
-                        #         obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.3)
-                        #         # display_meta.circle_params[roi_obj_count].circle_color.set(1.0, 0.0, 1.0, 1.0)
-
-                        #     roi_obj_count += 1
-                        
-                            
-                        
-
+                                
 
        
                 except StopIteration:
@@ -253,6 +232,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
         
 
     return Gst.PadProbeReturn.OK
+
 
 def dot(vevtor1, vector2):
     return vevtor1[0]*vector2[0]+vevtor1[1]*vector2[1]
@@ -284,11 +264,27 @@ def calc_angle_between_2line(x1, y1, x2, y2, x3, y3, x4, y4):
 
     return round(result,2)
 
+def calc_distance_between_points(x, y, previous_x, previous_y) :
+        len_x = (x - previous_x)**2
+        len_y = (y - previous_y)**2
+        dist = int(math.sqrt(len_x + len_y))
 
+        return dist
 class trajectory_point :
 
     object_in_roi = []
     current_object_in_roi = []
+
+    # 이상 주차 검출용 
+    object_in_passage = []
+    dict_car_in_passage_time = {}
+    dict_bbox_x_in_passage = {}
+    dict_bbox_y_in_passage = {}
+
+    double_parking = []
+
+    
+
     previous_point_dict = {}
 
     trajectory_x = {}
@@ -327,7 +323,18 @@ class trajectory_point :
     def clear_current_object_in_roi(self):
         trajectory_point.current_object_in_roi = []
 
+    def clear_current_object_in_passage(self):
+        trajectory_point.current_object_in_passage = []
 
+    def clear_double_parking_id_list(self):
+        double_parking_id_list = []
+
+    def pop_double_parking_id_list(id, self):
+        if int(id) in self.double_parking_id_list :
+            del self.double_parking_id_list[id]
+    
+
+    
 
 
 
@@ -483,11 +490,11 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     nvanalytics = Gst.ElementFactory.make("nvdsanalytics", "analytics")
     if not nvanalytics:
         sys.stderr.write(" Unable to create nvanalytics \n")
-    # nvanalytics.set_property("config-file", "config_nvdsanalytics_test.txt")
+    nvanalytics.set_property("config-file", "config_nvdsanalytics_test.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_cctv01.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_cctv02.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_cctv03.txt")
-    nvanalytics.set_property("config-file", "nvdsanalytics_cctv04.txt")
+    # nvanalytics.set_property("config-file", "nvdsanalytics_cctv04.txt")
 
 
     if disable_probe:
