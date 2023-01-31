@@ -70,6 +70,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
     dict_bbox_x_in_passage = u_data.dict_bbox_x_in_passage
     dict_bbox_y_in_passage = u_data.dict_bbox_y_in_passage
     double_parking = u_data.double_parking
+    stepping_line = u_data.stepping_line
 
     point_x = u_data.trajectory_x
     point_y = u_data.trajectory_y
@@ -161,7 +162,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                             
                                             # print("ID : ", key, "dist : ", calc_distance_between_points(bbox_bottom_x, bbox_bottom_y, previous_x, previous_y))
                                             if calc_distance_between_points(bbox_bottom_x, bbox_bottom_y, previous_x, previous_y) < 30 :
-                                                if int(time.time() - dict_car_in_passage_time[key]) % 15 == 0 :
+                                                if int(time.time() - dict_car_in_passage_time[key]) % 10 == 0 :
                                                     if not key in double_parking :
                                                         double_parking.append(key)
                                             else :
@@ -180,11 +181,20 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                     obj_meta.rect_params.border_color.set(1.0, 0.0, 0.0, 0.6)
                                     obj_meta.rect_params.border_width = 4
 
-                                
-                                
-                                
-
                                 roi_obj_count += 1
+                            
+                            #객체가 차선을 밟고 주차하는 경우
+                            elif str(user_meta_data.roiStatus).find("stepping") > 0 :
+                                obj_meta.text_params.text_bg_clr.alpha =1
+                                obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
+                                obj_meta.rect_params.has_bg_color = 1 
+                                obj_meta.rect_params.bg_color.set(1.0, 0.0, 1.0, 0.4)
+                                obj_meta.rect_params.border_color.set(1.0, 0.0, 1.0, 0.6)
+                                obj_meta.rect_params.border_width = 4
+
+                                if not obj_meta.object_id in stepping_line :
+                                    stepping_line.append(obj_meta.object_id)
+
 
                             #객체가 통로 구간에 있을 경우
                             elif str(user_meta_data.roiStatus).find("parking") > 0 :
@@ -195,6 +205,15 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                 obj_meta.rect_params.has_bg_color = 0     
 
                                 roi_obj_count += 1 
+                        
+                        # stepping line 영상 생성용으로 잠깐 쓴 코드라 추후 삭제
+                        # else :
+                        #     obj_meta.text_params.text_bg_clr.alpha =0
+                        #     obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
+                        #     obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 0.0)
+                        #     obj_meta.rect_params.border_width = 0
+                        #     obj_meta.rect_params.has_bg_color = 0 
+
 
                     # print("object_id_in_passage : ", object_id_in_passage)
                     # print("object_id_in_passage_time : ", dict_car_in_passage_time)
@@ -218,7 +237,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
         
         if frame_meta.source_id == 0 :
             py_nvosd_text_params = display_meta.text_params[0]
-            py_nvosd_text_params.display_text = "Double Parking Count : {}\nList : {}".format(len(double_parking), double_parking)
+            py_nvosd_text_params.display_text = "Double Parking Count : {} : {}\nStepping Line Count : {} : {}".format(len(double_parking), double_parking, len(stepping_line) ,stepping_line)
             py_nvosd_text_params.x_offset = 10
             py_nvosd_text_params.y_offset = 12
             py_nvosd_text_params.font_params.font_name = "Serif"
@@ -291,6 +310,7 @@ class trajectory_point :
     dict_bbox_y_in_passage = {}
 
     double_parking = []
+    stepping_line = []
 
     
 
@@ -499,11 +519,15 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     nvanalytics = Gst.ElementFactory.make("nvdsanalytics", "analytics")
     if not nvanalytics:
         sys.stderr.write(" Unable to create nvanalytics \n")
-    nvanalytics.set_property("config-file", "config_nvdsanalytics_test.txt")
+    # nvanalytics.set_property("config-file", "config_nvdsanalytics_test.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_cctv01.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_cctv02.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_cctv03.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_cctv04.txt")
+    nvanalytics.set_property("config-file", "config_nvdsanalytics_stepping_line.txt")
+    # nvanalytics.set_property("config-file", "nvdsanalytics_for_stepping_line_cctv02.txt")
+    # nvanalytics.set_property("config-file", "nvdsanalytics_for_stepping_line_cctv03.txt")
+    # nvanalytics.set_property("config-file", "nvdsanalytics_for_stepping_line_cctv04.txt")
 
 
     if disable_probe:
