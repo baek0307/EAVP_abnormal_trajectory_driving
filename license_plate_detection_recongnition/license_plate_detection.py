@@ -27,10 +27,12 @@ perf_data = None
 
 
 PGIE_CONFIG_FILE = "pgie_config_yolov4_test.txt"
+SGIE1_CONFIG_FILE = "lpd_yolov4-tiny_us.txt"
 TRACKER_CONFIG_FILE = "dstest2_tracker_config.txt"
 MAX_DISPLAY_LEN=64
 PGIE_CLASS_ID_CAR = 0
 PGIE_CLASS_ID_PERSON = 1
+SGIE_CLASS_ID_LPR = 2
 MUXER_OUTPUT_WIDTH=1920
 MUXER_OUTPUT_HEIGHT=1080
 MUXER_BATCH_TIMEOUT_USEC=4000000
@@ -100,6 +102,7 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
         obj_counter = {
             PGIE_CLASS_ID_CAR:0,
             PGIE_CLASS_ID_PERSON:0,
+            SGIE_CLASS_ID_LPR:0
         }
         
         #Display Text
@@ -118,20 +121,22 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
             except StopIteration:
                 break
             obj_counter[obj_meta.class_id] += 1
-           
-            if (obj_meta.class_id == 0 or obj_meta.class_id == 0):
+
+            if (obj_meta.class_id == 0 or obj_meta.class_id == 1):
                 obj_meta.rect_params.border_width = 0
                 obj_meta.text_params.text_bg_clr.alpha =0
                 obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
                 obj_meta.text_params.font_params.font_size = 15
-
+            
             #ROI 영역 내에 있는 obj_meta에 대해서만 처리함
             l_user_meta=obj_meta.obj_user_meta_list
             while l_user_meta:
                 try:
                     user_meta = pyds.NvDsUserMeta.cast(l_user_meta.data)
+
                     if user_meta.base_meta.meta_type == pyds.nvds_get_user_meta_type("NVIDIA.DSANALYTICSOBJ.USER_META"):   
                         user_meta_data = pyds.NvDsAnalyticsObjInfo.cast(user_meta.user_meta_data)
+                        
                         #객체가 roi영역에 존재하고 클래스가 차량일때
                         if (user_meta_data.roiStatus) and obj_meta.class_id == 0   :
                             #객체가 통로 구간에 있을 경우
@@ -174,8 +179,8 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                 obj_meta.rect_params.bg_color.set(0.0, 0.6, 0.6, 0.5)     
                                 obj_meta.text_params.text_bg_clr.alpha =1
                                 obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 1.0)
-                                
-                                obj_meta.rect_params.has_bg_color = 1           
+                                obj_meta.rect_params.has_bg_color = 1         
+
                                 if obj_meta.object_id in double_parking :
                                     obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
                                     obj_meta.rect_params.border_color.set(1.0, 0.0, 0.0, 0.6)
@@ -206,20 +211,13 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
 
                                 roi_obj_count += 1 
                         
-                        # stepping line 영상 생성용으로 잠깐 쓴 코드라 추후 삭제
-                        # else :
-                        #     obj_meta.text_params.text_bg_clr.alpha =0
-                        #     obj_meta.text_params.font_params.font_color.set(1.0, 1.0, 1.0, 0.0)
-                        #     obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 0.0)
-                        #     obj_meta.rect_params.border_width = 0
-                        #     obj_meta.rect_params.has_bg_color = 0 
-
-
-                    # print("object_id_in_passage : ", object_id_in_passage)
-                    # print("object_id_in_passage_time : ", dict_car_in_passage_time)
-                    # print("dict_bbox_x_in_passage : ", dict_bbox_x_in_passage)
-                    # print("dict_bbox_y_in_passage : ", dict_bbox_y_in_passage)
-
+                         
+                        if "lpd" in obj_meta.obj_label :
+                            print("## class_id : ", obj_meta.class_id , "object_parent : ", obj_meta.parent)  
+                            obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
+                            obj_meta.rect_params.border_color.set(1.0, 0.0, 0.0, 0.6)
+                            obj_meta.rect_params.border_width = 4
+                       
                                 
 
        
@@ -481,6 +479,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
         if not srcpad:
             sys.stderr.write("Unable to create src pad bin \n")
         srcpad.link(sinkpad)
+
     queue1=Gst.ElementFactory.make("queue","queue1")
     queue2=Gst.ElementFactory.make("queue","queue2")
     queue3=Gst.ElementFactory.make("queue","queue3")
@@ -488,6 +487,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     queue5=Gst.ElementFactory.make("queue","queue5")
     queue6=Gst.ElementFactory.make("queue","queue6")
     queue7=Gst.ElementFactory.make("queue","queue7")
+    queue8=Gst.ElementFactory.make("queue","queue8")
     pipeline.add(queue1)
     pipeline.add(queue2)
     pipeline.add(queue3)
@@ -495,6 +495,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     pipeline.add(queue5)
     pipeline.add(queue6)
     pipeline.add(queue7)
+    pipeline.add(queue8)
 
     nvdslogger = None
     transform = None
@@ -509,6 +510,10 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
 
     if not pgie:
         sys.stderr.write(" Unable to create pgie :  %s\n" % requested_pgie)
+    
+    sgie1 = Gst.ElementFactory.make("nvinfer", "secondary1-nvinference-engine")
+    if not sgie1:
+        sys.stderr.write(" Unable to make sgie1 \n")
 
     print("Creating Tracker \n ")
     tracker = Gst.ElementFactory.make("nvtracker", "tracker")
@@ -588,6 +593,9 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
         pgie.set_property('config-file-path', PGIE_CONFIG_FILE)
         # pgie.set_property('config-file-path', "dstest3_pgie_config.txt")
     pgie_batch_size=pgie.get_property("batch-size")
+
+    sgie1.set_property('config-file-path', SGIE1_CONFIG_FILE)
+
     if(pgie_batch_size != number_sources):
         print("WARNING: Overriding infer-config batch-size",pgie_batch_size," with number of sources ", number_sources," \n")
         pgie.set_property("batch-size",number_sources)
@@ -632,6 +640,7 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     pipeline.add(pgie)
     pipeline.add(tracker)
     pipeline.add(nvanalytics)
+    pipeline.add(sgie1)
     if nvdslogger:
         pipeline.add(nvdslogger)
     pipeline.add(tiler)
@@ -647,25 +656,32 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     pgie.link(queue2)
     queue2.link(tracker)
     tracker.link(queue3)
-    queue3.link(nvanalytics)
-    nvanalytics.link(queue4)
+    queue3.link(sgie1)
+    sgie1.link(queue4)
+    queue4.link(nvanalytics)
+    nvanalytics.link(queue5)
     
+    # queue3.link(nvanalytics)
+    # nvanalytics.link(queue4)
+    # queue4.link(sgie1)
+    # sgie1.link(queue5)
+
     if nvdslogger:
-        queue4.link(nvdslogger)
+        queue5.link(nvdslogger)
         nvdslogger.link(tiler)
     else:
-        queue4.link(tiler)
-    tiler.link(queue5)
-    queue5.link(nvvidconv)
-    nvvidconv.link(queue6)
-    queue6.link(nvosd)
+        queue5.link(tiler)
+    tiler.link(queue6)
+    queue6.link(nvvidconv)
+    nvvidconv.link(queue7)
+    queue7.link(nvosd)
     if transform:
-        nvosd.link(queue7)
-        queue7.link(transform)
+        nvosd.link(queue8)
+        queue8.link(transform)
         transform.link(sink)
     else:
-        nvosd.link(queue7)
-        queue7.link(sink)   
+        nvosd.link(queue8)
+        queue8.link(sink)   
 
     # create an event loop and feed gstreamer bus mesages to it
     loop = GLib.MainLoop()
