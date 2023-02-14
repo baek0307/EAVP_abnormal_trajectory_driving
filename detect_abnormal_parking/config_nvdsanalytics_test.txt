@@ -6,7 +6,7 @@ config-height=1080
 #osd-mode 0: Dont display any lines, rois and text
 #         1: Display only lines, rois and static text i.e. labels
 #         2: Display all info from 1 plus information about counts
-osd-mode=0
+osd-mode=1
 #Set OSD font size that has to be displayed
 display-font-size=1
 

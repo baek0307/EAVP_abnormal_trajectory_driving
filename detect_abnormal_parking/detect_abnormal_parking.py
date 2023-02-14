@@ -179,8 +179,8 @@ def nvanalytics_src_pad_buffer_probe(pad,info,u_data):
                                 if obj_meta.object_id in double_parking :
                                     obj_meta.rect_params.bg_color.set(1.0, 0.0, 0.0, 0.4)
                                     obj_meta.rect_params.border_color.set(1.0, 0.0, 0.0, 0.6)
-                                    obj_meta.rect_params.border_width = 4
-
+                                    obj_meta.rect_params.border_width = 4    
+                                
                                 roi_obj_count += 1
                             
                             #객체가 차선을 밟고 주차하는 경우
@@ -519,12 +519,12 @@ def main(args, requested_pgie=None, request_tracker=None, config=None, disable_p
     nvanalytics = Gst.ElementFactory.make("nvdsanalytics", "analytics")
     if not nvanalytics:
         sys.stderr.write(" Unable to create nvanalytics \n")
-    # nvanalytics.set_property("config-file", "config_nvdsanalytics_test.txt")
+    nvanalytics.set_property("config-file", "config_nvdsanalytics_test.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_cctv01.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_cctv02.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_cctv03.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_cctv04.txt")
-    nvanalytics.set_property("config-file", "config_nvdsanalytics_stepping_line.txt")
+    # nvanalytics.set_property("config-file", "config_nvdsanalytics_stepping_line.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_for_stepping_line_cctv02.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_for_stepping_line_cctv03.txt")
     # nvanalytics.set_property("config-file", "nvdsanalytics_for_stepping_line_cctv04.txt")
