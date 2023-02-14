@@ -1,0 +1,53 @@
+[property]
+enable=1
+#Width height used for configuration to which below configs are configured
+config-width=1920
+config-height=1080
+#osd-mode 0: Dont display any lines, rois and text
+#         1: Display only lines, rois and static text i.e. labels
+#         2: Display all info from 1 plus information about counts
+osd-mode=1
+#Set OSD font size that has to be displayed
+display-font-size=1
+
+## Per stream configuration
+[roi-filtering-stream-0]
+enable=1
+roi-ch1-zone1 = 378; 754; 676; 468; 675; 319; 3; 366; 6; 522; 293; 425; 310; 427; 11; 592; 8; 723;
+roi-ch1-parking-space1 = 629; 317; 635; 410; 1280; 405; 1289; 320
+roi-ch1-parking-space2 = 1291; 320; 1285; 574; 1486; 752; 1917;693; 1920; 378
+roi-ch1-parking-space3 = 378; 754; 676; 468; 675; 319; 3; 366; 6; 522; 293; 425; 310; 427; 11; 592; 8; 723;
+roi-ch1-passage = 735; 486; 461; 764; 2; 734; 2; 1080 ; 1920; 1080; 1910; 716; 1476; 708; 1150; 495
+inverse-roi=0
+class-id=-1
+
+[roi-filtering-stream-1]
+enable=1
+#roi-ch2-zone2 = 0; 1080; 0; 500; 513; 260; 829; 244; 837; 305; 235; 1080
+#roi-ch2-zone3 = 863; 277; 1108; 261; 1920; 1080; 1920; 360; 1345; 196; 860; 198
+roi-ch2-parking-space1 = 0; 1080; 0; 500; 513; 260; 829; 244; 837; 305; 235; 1080
+roi-ch2-parking-space2 = 863; 277; 1108; 261; 1920; 1080; 1920; 360; 1345; 196; 860; 198
+roi-ch2-passage = 844; 288; 250; 1080; 1880; 1080; 1113; 273
+inverse-roi=0
+class-id=-1
+
+[roi-filtering-stream-2]
+enable=1
+#roi-ch3-zone4 = 163; 1073; 679; 483; 1916; 425; 1920; 1080;
+roi-ch2-parking-space1 = 154; 1080; 637; 489; 0; 440; 0; 1080; 
+roi-ch2-parking-space2 = 730; 450;  1920; 430; 1920; 220; 720; 222; 
+roi-ch3-passage = 678; 463; 180; 1080; 1920; 1080; 1920; 800; 1640; 550; 1920; 490; 1877; 434;
+inverse-roi=0
+class-id=-1
+
+[roi-filtering-stream-3]
+enable=1
+#roi-ch4-zone5 = 1920; 1080; 1784; 1080; 1096; 207; 1104; 158; 1417; 158; 1912; 347
+#roi-ch4-zone6 = 7; 557; 71; 370; 363; 208; 470; 162; 832; 164; 841; 215; 479; 555
+roi-ch4-parking-space1 = 27; 538; 258; 272; 467; 157; 780; 150; 840; 201; 472; 559;
+roi-ch4-parking-space2 = 1795; 1080;1100; 204; 1100; 144; 1365; 165; 1911; 379; 1920; 1080;
+roi-ch4-passage = 0; 566; 0; 1080; 1780; 1080; 1391; 543; 1093; 205; 848; 204; 502; 563;
+
+inverse-roi=0
+class-id=-1
+
